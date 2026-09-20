@@ -1,0 +1,53 @@
+services:
+  roomscode:
+    build: .
+    image: roomscode:latest
+    container_name: roomscode
+    restart: unless-stopped
+    environment:
+      # backend/secrets_bootstrap.py gera e persiste a SECRET_KEY sozinho
+      # dentro do volume nomeado abaixo, na primeira vez que o container
+      # sobe — nada a criar/preparar antes de "docker compose up". Um
+      # volume NOMEADO (não um bind mount de arquivo) de propósito: assim
+      # o Docker cria o caminho sozinho com a dona certa (ver o RUN
+      # correspondente no Dockerfile), sem o problema clássico de bind
+      # mount de arquivo único que ainda não existe virar uma pasta vazia.
+      ROOMSCODE_ENV_FILE: /app/data/.env
+      # Config não-secreta (não faz sentido gerar sozinha, é escolha de
+      # quem hospeda): opcional, com os mesmos padrões de
+      # backend/config.py. Pra mudar, crie um ".env" AO LADO deste
+      # docker-compose.yml (mecanismo de substituição de variável do
+      # próprio Docker Compose — arquivo diferente do que fica dentro do
+      # volume citado acima) ou exporte a variável no shell antes do
+      # "docker compose up". Nenhum dos dois arquivos .env precisa existir
+      # pra o comando funcionar.
+      FLASK_ENV: "${FLASK_ENV:-production}"
+      ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-}"
+      TRUSTED_PROXY_COUNT: "${TRUSTED_PROXY_COUNT:-1}"
+    volumes:
+      - roomscode_data:/app/data
+    ports:
+      # Só em loopback: quem expõe isso ao mundo é o Cloudflare Tunnel
+      # instalado no host, apontando para http://localhost:5000. Nunca
+      # publicar em 0.0.0.0 aqui — não há motivo pra essa porta ser
+      # alcançável de fora da própria máquina sem passar pelo túnel.
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:5000/healthz', timeout=3).status == 200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+volumes:
+  # Guarda só o .env com a SECRET_KEY gerada automaticamente. Sobrevive a
+  # "docker compose down" / "up -d --build" normalmente — só some com
+  # "docker compose down -v" (nunca use -v em produção sem querer isso).
+  roomscode_data:

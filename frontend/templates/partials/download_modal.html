@@ -1,0 +1,28 @@
+<!-- Modal de instruções de instalação da extensão VS Code. Reaproveitado
+     tanto na home quanto na sala (botão de download dentro do painel de
+     código, quando o Host não está compartilhando nada) — por isso vive
+     num partial próprio em vez de duplicado em cada template. Aberto por
+     qualquer elemento com [data-open-download-modal] (ver download-modal.js). -->
+<div class="modal-overlay" id="download-modal" style="display:none;">
+    <div class="modal-card">
+        <h2 data-i18n="download_modal.title">{{ t('download_modal.title') }}</h2>
+        <p class="modal-message" data-i18n="download_modal.description">
+            {{ t('download_modal.description') }}
+        </p>
+        <ol class="download-modal-steps">
+            <li data-i18n-html="download_modal.step1">{{ t('download_modal.step1') | safe }}</li>
+            <li data-i18n-html="download_modal.step2">{{ t('download_modal.step2') | safe }}</li>
+            <li data-i18n-html="download_modal.step3">{{ t('download_modal.step3') | safe }}</li>
+        </ol>
+        <div class="modal-actions">
+            <button type="button" class="btn-outline" id="download-modal-back-btn" data-i18n="download_modal.back_button">{{ t('download_modal.back_button') }}</button>
+            <a
+                class="modal-btn-primary"
+                id="download-modal-confirm-btn"
+                href="{{ url_for('downloads.download_extension') }}"
+                data-i18n="download_modal.download_button"
+                download
+            >{{ t('download_modal.download_button') }}</a>
+        </div>
+    </div>
+</div>

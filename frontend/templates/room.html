@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('room.title_host') if role == 'host' else t('room.title_spectator') }}</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight/atom-one-dark.min.css') }}">
+</head>
+<body data-room-role="{{ role }}">
+    <header class="topbar">
+        <button type="button" class="brand-btn" id="brand-exit-btn" title="{{ t('room.exit_modal_title') }}">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" class="brand-logo">
+            <span class="brand-title">RoomsCode</span>
+            <span class="badge">{{ t('home.host_button') if role == 'host' else t('home.spectator_button') }}</span>
+        </button>
+
+        <div class="topbar-right">
+            {% if role == 'host' %}
+            <div class="room-code-wrapper" id="room-code-wrapper">
+                <button type="button" class="visibility-toggle-btn" id="visibility-toggle-btn" title="{{ t('room.visibility_lock_tooltip') }}" aria-label="{{ t('room.visibility_lock_tooltip') }}">
+                    <svg class="lock-icon lock-icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <svg class="lock-icon lock-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                    </svg>
+                </button>
+                <button type="button" class="eye-toggle-btn" id="eye-toggle-btn" title="{{ t('room.eye_toggle_tooltip') }}" aria-label="{{ t('room.eye_toggle_tooltip') }}">
+                    <svg class="eye-icon eye-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-icon eye-icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <line x1="2" y1="2" x2="22" y2="22"></line>
+                    </svg>
+                </button>
+                <button type="button" class="share-link-btn" id="share-room-link-btn" title="{{ t('room.share_link_tooltip') }}" aria-label="{{ t('room.share_link_tooltip') }}">
+                    <span class="share-icon">{% include 'partials/share_icon.svg' %}</span>
+                </button>
+                <span class="room-code-pill" id="room-code-pill" title="{{ t('room.click_to_copy') }}">
+                    <span class="room-code-text" id="room-code-text">------</span>
+                </span>
+                <!-- Token da extensão: sempre escondido, sem afetar/ser afetado pelo
+                     botão de olho acima — o rótulo é fixo (não é o valor real), então
+                     não tem estado "revelado". Clique continua copiando o token de
+                     verdade pro clipboard. -->
+                <span class="room-code-pill ext-token-pill" id="ext-token-pill" title="{{ t('room.ext_token_tooltip') }}">
+                    <span class="room-code-text">{{ t('room.copy_extension_code') }}</span>
+                </span>
+            </div>
+            {% else %}
+            <div class="room-code-wrapper" id="spectator-room-code-wrapper" style="display:none;">
+                <button type="button" class="share-link-btn" id="share-room-link-btn" title="{{ t('room.share_link_tooltip') }}" aria-label="{{ t('room.share_link_tooltip') }}">
+                    <span class="share-icon">{% include 'partials/share_icon.svg' %}</span>
+                </button>
+                <span class="room-code-pill room-code-pill-plain" id="spectator-room-code-pill" title="{{ t('room.click_to_copy') }}">
+                    <span class="room-code-text" id="spectator-room-code-text">------</span>
+                </span>
+            </div>
+            {% endif %}
+            <button type="button" class="exit-icon-btn" id="exit-room-btn" title="{{ t('room.exit_modal_title') }}" aria-label="{{ t('room.exit_modal_title') }}">
+                <svg fill="#000000" viewBox="0 0 512.021 512.021" xmlns="http://www.w3.org/2000/svg"><g transform="translate(-1 -1)"><path d="M508.184,249.202c0.203-0.247,0.379-0.507,0.568-0.76c0.227-0.304,0.463-0.601,0.674-0.917 c0.203-0.303,0.379-0.618,0.565-0.93c0.171-0.286,0.35-0.565,0.508-0.86c0.17-0.318,0.314-0.645,0.467-0.969 c0.145-0.307,0.298-0.609,0.428-0.923c0.13-0.315,0.235-0.636,0.35-0.956c0.121-0.337,0.25-0.67,0.355-1.015 c0.097-0.32,0.168-0.645,0.249-0.968c0.089-0.351,0.187-0.698,0.258-1.056c0.074-0.375,0.118-0.753,0.172-1.13 c0.044-0.311,0.104-0.618,0.135-0.933c0.138-1.4,0.138-2.811,0-4.211c-0.031-0.315-0.09-0.621-0.135-0.932 c-0.054-0.378-0.098-0.756-0.173-1.13c-0.071-0.358-0.169-0.704-0.258-1.055c-0.081-0.324-0.152-0.649-0.249-0.969 c-0.104-0.344-0.233-0.677-0.354-1.013c-0.115-0.32-0.22-0.642-0.35-0.957c-0.13-0.314-0.283-0.616-0.428-0.922 c-0.153-0.325-0.297-0.652-0.467-0.97c-0.157-0.294-0.337-0.573-0.507-0.859c-0.186-0.312-0.362-0.627-0.565-0.931 c-0.211-0.315-0.446-0.612-0.673-0.915c-0.19-0.254-0.367-0.515-0.57-0.762c-0.443-0.539-0.909-1.058-1.402-1.551 c-0.004-0.004-0.007-0.008-0.011-0.012l-64-64c-8.331-8.331-21.839-8.331-30.17,0c-8.331,8.331-8.331,21.839,0,30.17 l27.582,27.582h-55.163v-192c0-11.782-9.551-21.333-21.333-21.333H22.752c-0.821-0.017-1.635,0.014-2.439,0.091 c-0.169,0.014-0.335,0.032-0.503,0.05c-0.164,0.02-0.328,0.044-0.491,0.067C10.204,2.359,4.233,8.556,1.998,15.917 c-0.158,0.502-0.293,1.014-0.414,1.533c-0.005,0.02-0.008,0.04-0.013,0.06c-0.125,0.542-0.226,1.093-0.309,1.652 c-0.008,0.052-0.016,0.104-0.024,0.156c-0.071,0.503-0.128,1.01-0.163,1.525C1.016,21.615,1,22.389,1.019,23.163v425.851 c0,10.169,7.178,18.925,17.15,20.919L231.502,512.6c13.201,2.64,25.517-7.457,25.517-20.919v-21.333h106.667 c11.782,0,21.333-9.551,21.333-21.333v-192h55.163l-27.582,27.582c-8.331,8.331-8.331,21.839,0,30.17 c8.331,8.331,21.839,8.331,30.17,0l64-64c0.004-0.004,0.007-0.008,0.011-0.012C507.275,250.26,507.741,249.742,508.184,249.202z M214.353,465.658L43.686,431.525V51.02l170.667,51.2v346.794V465.658z M342.353,427.681h-85.333V86.347 c0-9.421-6.18-17.727-15.203-20.434l-74.11-22.233h174.647V427.681z"></path><path d="M176.86,300.318l-42.667-10.667c-11.43-2.858-23.013,4.092-25.87,15.522c-2.858,11.43,4.092,23.013,15.522,25.87 l42.667,10.667c11.43,2.858,23.013-4.092,25.87-15.522C195.24,314.758,188.29,303.175,176.86,300.318z"></path></g></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="room-main">
+        <div class="viewer-grid" id="viewer-grid">
+            <section class="panel screen-panel" id="screen-panel">
+                <h3>{{ t('room.host_screen_heading') }}</h3>
+                <video id="video-display" autoplay {% if role == 'host' %}muted{% endif %} playsinline></video>
+                {% if role != 'host' %}
+                <p class="screen-placeholder" id="screen-placeholder">{{ t('room.waiting_screen_share') }}</p>
+                {% endif %}
+                {% if role == 'host' %}
+                <button id="share-toggle-btn" class="share-btn share-btn-center" type="button">{{ t('room.share_toggle_start') }}</button>
+                {% endif %}
+            </section>
+
+            <div class="viewer-resize-handle" id="viewer-resize-handle" title="{{ t('room.resize_handle_tooltip') }}"></div>
+
+            <section class="panel code-panel code-panel-empty" id="code-panel">
+                <div class="code-panel-sticky-header">
+                    <div class="code-tab-bar-row">
+                        <div class="code-tab-bar" id="code-tab-bar"></div>
+                        {% if role != 'host' %}
+                        <label class="follow-host-toggle" id="follow-host-toggle" title="{{ t('room.follow_host_tooltip') }}">
+                            <input type="checkbox" id="follow-host-checkbox">
+                            {{ t('room.follow_host_label') }}
+                        </label>
+                        {% endif %}
+                    </div>
+                    <div class="code-file-header">
+                        <h3 id="code-filename">{{ t('room.no_file_shared') }}</h3>
+                        <div class="code-file-actions">
+                            <button type="button" class="code-action-btn" id="copy-file-btn" title="{{ t('room.copy_file_tooltip') }}" aria-label="{{ t('room.copy_file_tooltip') }}" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="code-action-btn" id="download-file-btn" title="{{ t('room.download_file_tooltip') }}" aria-label="{{ t('room.download_file_tooltip') }}" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <pre><code id="code-content" class="hljs"></code></pre>
+
+                <!-- Mostrado só quando não há nenhum arquivo compartilhado
+                     (classe .code-panel-empty na section, alternada via JS em
+                     setCodeActive). Ver comentário no CSS sobre a "barrinha"
+                     que isso substitui. -->
+                <div class="code-empty-state" id="code-empty-state">
+                    {% if role == 'host' %}
+                    <!-- Alternado via JS (setExtensionConnected, em room-init.js) conforme a
+                         extensão do VS Code está ou não conectada à sala — evita mostrar o
+                         convite pra baixar/instalar a extensão pra quem já a instalou e
+                         conectou, só ainda não abriu nenhum arquivo. -->
+                    <p id="code-empty-state-message">{{ t('room.no_code_shared') }}</p>
+                    <div class="download-trigger" id="code-panel-download-trigger-wrap">
+                        <span class="vscode-icon" aria-hidden="true">
+                            {% include 'partials/vscode_icon.svg' %}
+                        </span>
+                        <button type="button" class="vscode-download-btn" id="code-panel-download-trigger" data-open-download-modal>
+                            {{ t('home.download_extension_trigger') }}
+                        </button>
+                    </div>
+                    {% else %}
+                    <p>{{ t('room.no_code_shared') }}</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        <div class="bottom-grid">
+            <section class="panel spectators-panel">
+                <h3 id="spectators-heading">{{ t('room.spectators_heading', count=0) }}</h3>
+                <ul id="spectator-list"></ul>
+            </section>
+
+            <section class="panel chat-panel">
+                <h3>{{ t('room.chat_heading') }}</h3>
+                <div id="chat-messages"></div>
+                <form id="chat-form" onsubmit="return false;">
+                    <input id="chat-input" type="text" placeholder="{{ t('room.chat_input_placeholder') }}" autocomplete="off">
+                    <button type="submit">{{ t('room.chat_send_button') }}</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="join-modal">
+        <div class="modal-card">
+            <h2>{{ t('room.join_modal_title_host') if role == 'host' else t('room.join_modal_title_spectator') }}</h2>
+
+            <form id="modal-step-input" onsubmit="return false;">
+                <label for="modal-name-input">{{ t('room.modal_name_label') }}</label>
+                <input id="modal-name-input" type="text" placeholder="{{ t('room.modal_name_placeholder') }}" autofocus>
+
+                {% if role != 'host' %}
+                <label for="modal-code-input">{{ t('room.modal_code_label') }}</label>
+                <input id="modal-code-input" type="text" maxlength="6" placeholder="{{ t('room.modal_code_placeholder') }}" value="{{ prefill_code }}">
+                {% endif %}
+
+                <p class="modal-error" id="modal-error"></p>
+                <div class="modal-actions">
+                    <button type="button" class="btn-outline" id="modal-back-btn">{{ t('room.modal_back_button') }}</button>
+                    <button type="submit" id="modal-submit-btn">{{ t('room.modal_submit_host') if role == 'host' else t('room.modal_submit_spectator') }}</button>
+                </div>
+            </form>
+
+            <div id="modal-step-code" style="display:none;">
+                <p>{{ t('room.modal_share_code_text') }}</p>
+                <div class="room-code-display" id="room-code-display">------</div>
+                <button type="button" id="modal-enter-room-btn">{{ t('room.modal_enter_room_button') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup de confirmação pra sair da sala, no mesmo estilo do modal de
+         entrada (overlay + card), no lugar do window.confirm padrão do
+         navegador. -->
+    <div class="modal-overlay" id="exit-modal" style="display:none;">
+        <div class="modal-card">
+            <h2 id="exit-modal-title">{{ t('room.exit_modal_title') }}</h2>
+            <p class="modal-message" id="exit-modal-message"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn-outline" id="exit-cancel-btn">{{ t('room.exit_cancel_button') }}</button>
+                <button type="button" id="exit-confirm-btn">{{ t('room.exit_confirm_button') }}</button>
+            </div>
+        </div>
+    </div>
+
+    {% if role == 'host' %}
+    {% include 'partials/download_modal.html' %}
+    {% endif %}
+
+    <!-- Bibliotecas de terceiros vendorizadas em frontend/static/vendor/ (ver
+         README.md da pasta) em vez de carregadas via CDN em runtime — elimina
+         a dependência de terceiros e a necessidade de SRI. -->
+    <script id="i18n-data" type="application/json">{{ i18n_json | safe }}</script>
+    <script src="{{ url_for('static', filename='js/i18n-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/socket.io/socket.io.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/highlight/highlight.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/highlightjs-line-numbers/highlightjs-line-numbers.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/diff-match-patch/diff_match_patch.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/clipboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file-sync-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat-autocomplete.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/webrtc-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/panel-resize.js') }}"></script>
+    {% if role == 'host' %}
+    <script src="{{ url_for('static', filename='js/download-modal.js') }}"></script>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/room-init.js') }}"></script>
+</body>
+</html>

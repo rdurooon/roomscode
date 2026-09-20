@@ -1,0 +1,28 @@
+# Variáveis de ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Dados persistidos localmente (fora do Docker)
+instance/
+
+# Node (só usado pelas ferramentas de teste do frontend)
+node_modules/
+
+# Logs
+*.log
+
+# Editor / SO
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Testes do sistema
+tests/

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoomsCode</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+</head>
+<body class="home-page">
+    <div class="download-trigger download-trigger-corner">
+        <span class="vscode-icon" aria-hidden="true">
+            {% include 'partials/vscode_icon.svg' %}
+        </span>
+        <button type="button" class="vscode-download-btn" id="home-download-trigger" data-open-download-modal data-i18n="home.download_extension_trigger">
+            {{ t('home.download_extension_trigger') }}
+        </button>
+    </div>
+
+    <div class="language-switcher-corner">
+        <div class="lang-switcher" id="lang-switcher">
+            <button type="button" class="lang-switcher-trigger" id="lang-switcher-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Idioma / Language / Idioma">
+                <span class="lang-flag" id="lang-switcher-current-flag">{% include 'partials/flags/' ~ locale_display[current_locale].flag_file ~ '.svg' %}</span>
+                <span id="lang-switcher-current-label">{{ locale_display[current_locale].label }}</span>
+                <svg class="lang-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <ul class="lang-switcher-list" id="lang-switcher-list" role="listbox" hidden>
+                {% for code in supported_locales %}
+                <li role="option" class="lang-switcher-option" data-locale="{{ code }}" aria-selected="{{ 'true' if code == current_locale else 'false' }}">
+                    <span class="lang-flag">{% include 'partials/flags/' ~ locale_display[code].flag_file ~ '.svg' %}</span>
+                    <span class="lang-switcher-option-label">{{ locale_display[code].label }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="home-hero">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" class="home-logo">
+        <h1>RoomsCode</h1>
+        <p data-i18n="home.subtitle">{{ t('home.subtitle') }}</p>
+        <div class="home-buttons">
+            <a class="home-btn" data-i18n="home.host_button" href="{{ url_for('host.host_page') }}">{{ t('home.host_button') }}</a>
+            <a class="home-btn" data-i18n="home.spectator_button" href="{{ url_for('spectator.spectator_page') }}">{{ t('home.spectator_button') }}</a>
+        </div>
+    </div>
+
+    {% include 'partials/download_modal.html' %}
+
+    <script id="i18n-data" type="application/json">{{ i18n_json | safe }}</script>
+    <script id="i18n-all-data" type="application/json">{{ i18n_all_json | safe }}</script>
+    <script src="{{ url_for('static', filename='js/i18n-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/language-switcher.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/download-modal.js') }}"></script>
+</body>
+</html>

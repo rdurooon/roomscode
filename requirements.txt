@@ -1,0 +1,8 @@
+Flask==3.0.3
+Flask-SocketIO==5.3.6
+Flask-Limiter==3.8.0
+python-socketio==5.11.3
+eventlet==0.36.1
+diff-match-patch==20230430
+bleach==6.1.0
+gunicorn==22.0.0

@@ -1,0 +1,1193 @@
+:root {
+    --accent-color: #CE9178;
+    --accent-glow: rgba(206, 145, 120, 0.24);
+    --line-highlight-bg: rgba(206, 145, 120, 0.22);
+    --bg-primary: #1e1e1e;
+    --bg-panel: #252526;
+    --text-primary: #e6e6e6;
+    --text-muted: #9d9d9d;
+    --border-subtle: #3a3a3a;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+}
+
+/* Fundo atrás das janelas/painéis: um degradê suave usando a cor de
+   destaque sorteada em theme.js, em vez de um efeito nas próprias janelas
+   (que antes deixava "bolinhas" escuras nos cantos). Os stops em
+   "transparent" evitam bordas duras — só um brilho ambiente colorido
+   sobre o fundo escuro. */
+html, body {
+    background-color: var(--bg-primary);
+    background-image:
+        radial-gradient(circle at 12% 10%, var(--accent-glow), transparent 55%),
+        radial-gradient(circle at 90% 85%, var(--accent-glow), transparent 55%);
+    background-attachment: fixed;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---- Topbar ---- */
+
+.topbar {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 20px;
+    background: #161616;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.brand-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    font-size: 1.25em;
+    color: var(--text-primary);
+}
+
+.brand-btn:hover {
+    opacity: 0.85;
+}
+
+.brand-logo {
+    height: 28px;
+    width: 28px;
+    object-fit: contain;
+}
+
+.brand-title {
+    font-weight: 600;
+}
+
+.badge {
+    background: var(--accent-color);
+    color: #111;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.6em;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.room-code-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.visibility-toggle-btn {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.lock-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}
+
+.lock-icon-open {
+    display: none;
+}
+
+.visibility-toggle-btn.unlocked .lock-icon-closed {
+    display: none;
+}
+
+.visibility-toggle-btn.unlocked .lock-icon-open {
+    display: block;
+    color: var(--accent-color);
+}
+
+.eye-toggle-btn {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.eye-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}
+
+.eye-icon-closed {
+    display: none;
+}
+
+.room-code-wrapper.revealed .eye-icon-open {
+    display: none;
+}
+
+.room-code-wrapper.revealed .eye-icon-closed {
+    display: block;
+}
+
+.room-code-pill {
+    display: inline-flex;
+    align-items: center;
+    font-family: monospace;
+    font-size: 1.1em;
+    letter-spacing: 2px;
+    background: #111;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--accent-color);
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Blur isolado num <span> interno (.room-code-text): só os caracteres ficam ilegíveis, borda e fundo do pill continuam nítidos. */
+.room-code-text {
+    display: inline-block;
+    filter: blur(5px);
+    transition: filter 0.15s ease;
+}
+
+.room-code-wrapper.revealed .room-code-text {
+    filter: none;
+}
+
+/* Lado do Espectador: quando o Host libera, o código aparece direto,
+   sem o botão de olho e sem o blur — não tem estado "oculto" aqui. */
+.room-code-pill-plain .room-code-text {
+    filter: none;
+}
+
+/* Token de controle da extensão VS Code: ao contrário do código da sala,
+   esse pill NUNCA mostra o valor real — o texto é um rótulo fixo ("Copiar
+   código da extensão"), então não existe nada pra revelar/esconder. Por
+   isso ele fica de fora do botão de olho: a seletor abaixo tem mais
+   especificidade que ".room-code-wrapper.revealed .room-code-text" e
+   sempre vence, independente do estado do olho. Nunca aparece pro
+   Espectador, esse pill só existe no lado do Host. */
+.room-code-wrapper .ext-token-pill .room-code-text {
+    filter: none;
+}
+
+.ext-token-pill {
+    font-size: 0.8em;
+    border-color: var(--text-muted);
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0;
+}
+
+.exit-icon-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.exit-icon-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--text-muted);
+    transition: fill 0.15s ease;
+}
+
+.exit-icon-btn:hover svg {
+    fill: var(--accent-color);
+}
+
+/* Botão de compartilhar link da sala (canto do Host sempre, canto do
+   Espectador só quando o Host libera o código — fica dentro do mesmo
+   wrapper que aparece/some junto com o código, ver setSpectatorCodeVisible
+   em room-init.js). Fica à esquerda do código da sala (não à direita) e
+   usa a mesma cor/tamanho dos outros ícones desse grupo (cadeado e olho),
+   via currentColor + var(--text-muted) — o ícone antigo, colorido, foi
+   trocado por um monocromático de propósito pra isso ser possível.
+   Também some/aparece junto com o código quando o Host tranca/libera a
+   sala (via .share-link-btn dentro de .room-code-wrapper), sem precisar
+   de nenhum JS a mais. */
+.share-link-btn {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.share-icon svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}
+
+/* ---- Grade principal: ocupa o resto da tela, sem scroll na página ---- */
+
+.room-main {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-rows: 2fr 1fr;
+    gap: 12px;
+    padding: 12px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.viewer-grid {
+    display: flex;
+    gap: 0;
+    min-height: 0;
+}
+
+.viewer-grid .screen-panel {
+    flex: 0 0 66%;
+    min-width: 220px;
+}
+
+.viewer-grid .code-panel {
+    flex: 1 1 0;
+    min-width: 220px;
+}
+
+/* Alça de redimensionamento entre a tela do Host e o painel de código. */
+.viewer-resize-handle {
+    flex: 0 0 14px;
+    cursor: col-resize;
+    position: relative;
+}
+
+.viewer-resize-handle::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--border-subtle);
+    transform: translateX(-50%);
+    transition: background 0.15s ease;
+}
+
+.viewer-resize-handle:hover::after,
+.viewer-resize-handle.dragging::after {
+    background: var(--accent-color);
+}
+
+/* Quando só um dos dois canais está ativo (lado Espectador), o outro
+   painel (e a alça) desaparecem e o ativo ocupa o espaço inteiro. */
+.viewer-grid.screen-only .code-panel,
+.viewer-grid.screen-only .viewer-resize-handle {
+    display: none;
+}
+.viewer-grid.screen-only .screen-panel {
+    flex: 1 1 100%;
+}
+
+.viewer-grid.code-only .screen-panel,
+.viewer-grid.code-only .viewer-resize-handle {
+    display: none;
+}
+.viewer-grid.code-only .code-panel {
+    flex: 1 1 100%;
+}
+
+.bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    min-height: 0;
+}
+
+@media (max-width: 800px) {
+    .viewer-grid {
+        flex-direction: column;
+    }
+    .viewer-grid .screen-panel,
+    .viewer-grid .code-panel {
+        flex: 1 1 auto;
+    }
+    .viewer-resize-handle {
+        display: none; /* redimensionar não faz sentido empilhado verticalmente */
+    }
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ---- Painéis: dark mode + "luz ambiente" no lugar da borda grossa ---- */
+
+.panel {
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 12px;
+    overflow: auto;
+    min-height: 0;
+    /* Garante que conteúdo sticky (a barra de abas) respeite o recorte arredondado do overflow (bug conhecido no Chromium). */
+    contain: paint;
+}
+
+.panel h3 {
+    margin-top: 0;
+    color: var(--text-muted);
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
+/* ---- Painel de tela / compartilhamento ---- */
+
+.screen-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#video-display {
+    flex: 1;
+    width: 100%;
+    background: #000;
+    border-radius: 6px;
+    object-fit: contain;
+    min-height: 0;
+}
+
+.screen-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin: 0;
+    display: flex;
+    pointer-events: none;
+}
+
+.share-btn {
+    position: absolute;
+    background: var(--accent-color);
+    color: #111;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0 14px var(--accent-glow);
+    transition: all 0.15s ease;
+}
+
+.share-btn-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.share-btn-corner {
+    bottom: 16px;
+    left: 16px;
+    top: auto;
+    transform: none;
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
+/* ---- Painel de código ---- */
+
+/* Padding do painel zerado e devolvido ao cabeçalho/bloco de código, pra ficar dentro da caixa sticky (não do contêiner que rola). */
+.code-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.code-panel-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-panel);
+    flex: 0 0 auto;
+    padding: 12px 12px 0;
+}
+
+.code-panel-sticky-header h3 {
+    margin-bottom: 0;
+}
+
+.code-tab-bar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.follow-host-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: 8px;
+}
+
+/* Checkbox customizado: sem marcação = caixa vazada (só contorno,
+   fundo transparente); marcado = preenchido com a cor de destaque atual
+   do site (a mesma sorteada em theme.js), então acompanha o tema. */
+.follow-host-toggle input {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    padding: 0;
+    border: 2px solid var(--text-muted);
+    border-radius: 4px;
+    background: transparent;
+    position: relative;
+    flex: 0 0 auto;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.follow-host-toggle input:hover {
+    border-color: var(--accent-color);
+}
+
+.follow-host-toggle input:checked {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.follow-host-toggle input:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: -1px;
+    width: 4px;
+    height: 8px;
+    border: solid #111;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.code-file-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.code-file-actions {
+    display: flex;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.code-action-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.code-action-btn:hover:not(:disabled) {
+    color: var(--accent-color);
+}
+
+.code-action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.code-action-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.code-panel pre {
+    margin: 0;
+    flex: 1 1 auto;
+    padding: 0 12px 12px;
+}
+
+/* ---- Painel de código sem nenhum arquivo compartilhado ----
+   Esconde cabeçalho + <pre> (classe .code-panel-empty, via JS em setCodeActive) e mostra este placeholder centralizado. */
+.code-panel-empty .code-panel-sticky-header,
+.code-panel-empty pre {
+    display: none;
+}
+
+.code-empty-state {
+    display: none;
+}
+
+.code-panel-empty .code-empty-state {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+/* Fonte monoespaçada: as guias de indentação usam a unidade "ch", que só bate com a largura real em fontes monoespaçadas. */
+.code-panel pre,
+.code-panel code,
+.code-panel table.hljs-ln,
+.code-panel td.hljs-ln-numbers,
+.code-panel td.hljs-ln-code {
+    font-family: Consolas, 'Courier New', monospace;
+}
+
+.code-panel code {
+    display: block;
+    padding: 8px;
+    white-space: pre-wrap;   /* fallback caso a numeração de linhas não carregue */
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Tabela gerada pelo plugin highlightjs-line-numbers.js */
+.code-panel table.hljs-ln {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.code-panel td.hljs-ln-numbers {
+    text-align: right;
+    padding-right: 12px;
+    padding-left: 4px;
+    user-select: none;
+    opacity: 0.45;
+    vertical-align: top;
+    border: none;
+    white-space: nowrap;
+}
+
+/* O plugin só grava o número no atributo data-line-number de uma <div>
+   vazia — sem essa regra, a coluna de números fica em branco. */
+.code-panel .hljs-ln-n::before {
+    content: attr(data-line-number);
+}
+
+.code-panel td.hljs-ln-code {
+    padding-left: 12px;
+    vertical-align: top;
+    border: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    width: 100%;
+    /* Guias de indentação calculadas por linha em file-sync-client.js (applyIndentGuides); aqui só a posição base. */
+    background-position-x: 12px;
+}
+
+/* Linha onde o Host está agora (indicador simples, sem cursor). */
+.host-line-highlight {
+    background: var(--line-highlight-bg);
+}
+
+/* ---- Barra de abas (arquivos abertos no VS Code do Host) ---- */
+
+.code-tab-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.code-tab {
+    background: #1b1b1b;
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px 6px 0 0;
+    padding: 4px 10px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+.code-tab-active {
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+    border-bottom-color: transparent;
+}
+
+/* ---- Menu de sugestões do chat (comandos e nomes de arquivo) ---- */
+
+.chat-suggest-box {
+    position: fixed;
+    z-index: 250;
+    background: #1b1b1b;
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+    box-shadow: 0 0 18px var(--accent-glow);
+    overflow: hidden;
+    display: none;
+}
+
+.chat-suggest-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.chat-suggest-item:last-child {
+    border-bottom: none;
+}
+
+.chat-suggest-item strong {
+    font-family: monospace;
+    font-size: 0.9em;
+    color: var(--text-primary);
+}
+
+.chat-suggest-item span {
+    font-size: 0.75em;
+    color: var(--text-muted);
+}
+
+.chat-suggest-item-active {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---- Espectadores ---- */
+
+.spectators-panel ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.spectators-panel li {
+    background: #333;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+/* ---- Chat ---- */
+
+.chat-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+#chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    min-height: 0;
+}
+
+.chat-message {
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    word-break: break-word;
+}
+
+.chat-system-message {
+    color: var(--accent-color);
+    font-style: italic;
+}
+
+.chat-quote {
+    display: inline-block;
+    background: #111;
+    border: 1px solid var(--accent-color);
+    color: var(--accent-color);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85em;
+    margin: 2px 4px 2px 0;
+}
+
+.chat-mention {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent-color);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin: 0 2px;
+}
+
+/* Quando a mensagem menciona o próprio usuário, destaca mais forte —
+   ajuda a chamar atenção de quem foi endereçado diretamente. */
+.chat-mention-self {
+    background: var(--accent-color);
+    color: #111;
+}
+
+#chat-form {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+#chat-form input {
+    flex: 1;
+}
+
+/* ---- Modal de entrada (nome / código da sala) ---- */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal-card {
+    background: var(--bg-panel);
+    border-radius: 10px;
+    padding: 28px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 0 32px var(--accent-glow);
+    text-align: center;
+}
+
+.modal-card h2 {
+    margin-top: 0;
+    font-size: 1.2em;
+}
+
+.modal-card label {
+    display: block;
+    text-align: left;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 12px 0 4px;
+}
+
+.modal-card input {
+    width: 100%;
+}
+
+.modal-error {
+    color: #e06c75;
+    font-size: 0.85em;
+    min-height: 1.2em;
+}
+
+.room-code-display {
+    font-family: monospace;
+    font-size: 2em;
+    letter-spacing: 4px;
+    background: #111;
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+    padding: 14px;
+    margin: 16px 0;
+}
+
+.modal-card button {
+    width: 100%;
+    margin-top: 12px;
+}
+
+/* Linha de ações do modal (ex: Voltar + Criar sala/Entrar, ou
+   Cancelar + Sair) — os botões dividem o espaço lado a lado. */
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.modal-actions button {
+    margin-top: 0;
+    flex: 1 1 0;
+}
+
+/* Botão "outline": contorno branco, fundo transparente (mesma cor do
+   fundo em volta) — usado para ações secundárias como Voltar/Cancelar,
+   pra não competir visualmente com a ação principal do modal. */
+.btn-outline {
+    background: transparent;
+    color: #fff;
+    border: 1px solid #fff;
+    font-weight: 600;
+}
+
+.btn-outline:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-message {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    text-align: left;
+    margin: 4px 0 0;
+}
+
+/* ---- Home ---- */
+
+.home-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.home-hero {
+    text-align: center;
+}
+
+.home-logo {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px var(--accent-glow));
+}
+
+.home-hero h1 {
+    font-size: 2.4em;
+    margin-bottom: 4px;
+    text-shadow: 0 0 24px var(--accent-glow);
+}
+
+.home-hero p {
+    color: var(--text-muted);
+    margin-top: 0;
+}
+
+.home-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+.home-btn {
+    padding: 14px 32px;
+    border-radius: 8px;
+    background: var(--accent-color);
+    color: #111;
+    font-weight: bold;
+    text-decoration: none;
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+/* ---- Botão "Baixar extensão" (canto superior direito da home, e também
+   reaproveitado dentro do painel de código quando o Host não está
+   compartilhando nada) + ícone ao lado + modal de instruções ---- */
+
+.download-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.download-trigger-corner {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+}
+
+/* Seletor de idioma manual (canto oposto ao botão de baixar extensão) —
+   troca ao vivo, ver language-switcher.js. Só existe na home por enquanto,
+   mas a escolha (cookie roomscode_lang) vale pro site inteiro. Dropdown
+   customizado (não <select> nativo) pra caber bandeira em SVG dentro de
+   cada opção — fundo transparente de propósito, só a borda acompanha a cor
+   de destaque do site (a mesma sorteada em theme.js). */
+.language-switcher-corner {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+}
+
+.lang-switcher {
+    position: relative;
+}
+
+.lang-switcher-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-weight: normal;
+    cursor: pointer;
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.lang-caret {
+    color: var(--text-muted);
+    transition: transform 0.15s ease;
+}
+
+.lang-switcher.open .lang-caret {
+    transform: rotate(180deg);
+}
+
+.lang-switcher-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    background: transparent;
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+    z-index: 20;
+}
+
+.lang-switcher-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lang-switcher-option:hover,
+.lang-switcher-option[aria-selected="true"] {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.lang-flag svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+/* O ícone acompanha a cor de destaque sorteada em theme.js (currentColor
+   dentro do SVG + color aqui), igual ao resto dos ícones do site. */
+.vscode-icon {
+    display: flex;
+    color: var(--accent-color);
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.vscode-icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+/* Reaproveita o estilo padrão de <button> já definido lá embaixo em
+   "Elementos genéricos" (fundo na cor de destaque, texto escuro, negrito)
+   — só ajusta tamanho/raio/sombra pra combinar com .home-btn. */
+.vscode-download-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    box-shadow: 0 0 14px var(--accent-glow);
+    white-space: nowrap;
+}
+
+.download-modal-steps {
+    text-align: left;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    line-height: 1.5;
+    margin: 14px 0 0;
+    padding-left: 20px;
+}
+
+.download-modal-steps code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+/* O link de download real é uma <a>, então não herda o estilo genérico
+   de <button> do fim do arquivo — replica o mesmo visual aqui. */
+.modal-actions a.modal-btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    background: var(--accent-color);
+    color: #111;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 1em;
+    flex: 1 1 0;
+}
+
+.cite-line-btn {
+    position: fixed;
+    z-index: 200;
+    padding: 4px 10px;
+    font-size: 0.8em;
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+/* ---- Toast (canto superior direito) ---- */
+
+#toast-container {
+    position: fixed;
+    top: 64px; /* sobrescrito dinamicamente pelo JS com a altura real da topbar */
+    right: 16px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 320px;
+}
+
+.toast {
+    background: #2a2a2a;
+    border-left: 4px solid var(--accent-color);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    font-size: 0.9em;
+    opacity: 0;
+    transform: translateX(16px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-error {
+    border-left-color: #e06c75;
+}
+
+.toast-success {
+    border-left-color: #4EC9B0;
+}
+
+/* ---- Banner persistente de reconexão do Host (topo da página) ----
+   Diferente do toast: fica até a situação se resolver (host reconectar ou
+   a sala cair de vez), então tem contagem regressiva em vez de sumir
+   sozinho depois de alguns segundos. */
+.reconnect-banner {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 320;
+    justify-content: center;
+    align-items: center;
+    max-width: calc(100vw - 32px);
+    padding: 8px 18px;
+    background: #3a2f1a;
+    border: 1px solid #e5c07b;
+    border-radius: 999px;
+    color: #e5c07b;
+    font-size: 0.85em;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .reconnect-banner {
+        white-space: normal;
+        text-align: center;
+    }
+}
+
+/* ---- Passo "reconectando" no modal (Host voltando a uma sala existente) ---- */
+.reconnecting-text {
+    text-align: center;
+    color: var(--text-secondary, #aaa);
+    animation: reconnecting-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes reconnecting-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* ---- Elementos genéricos ---- */
+
+input, button, select {
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle);
+    font-size: 1em;
+    background: #1b1b1b;
+    color: var(--text-primary);
+}
+
+button {
+    background: var(--accent-color);
+    border: none;
+    color: #111;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:disabled {
+    background: #555;
+    color: #ccc;
+    cursor: not-allowed;
+}
