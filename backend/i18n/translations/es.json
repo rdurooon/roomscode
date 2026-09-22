@@ -65,7 +65,11 @@
     "share_permission_denied": "No se pudo compartir la pantalla (permiso denegado o cancelado).",
     "share_link_tooltip": "Copiar enlace de invitación a la sala",
     "share_link_copied": "¡Enlace copiado!",
-    "share_link_copy_failed": "No se pudo copiar el enlace."
+    "share_link_copy_failed": "No se pudo copiar el enlace.",
+    "fullscreen_tooltip": "Pantalla completa",
+    "hide_screen_tooltip": "Ocultar pantalla",
+    "exit_fullscreen_button": "Salir de pantalla completa",
+    "show_host_screen_tooltip": "Mostrar pantalla del host"
   },
   "chat": {
     "autocomplete_code_hint": "Cita una línea de un archivo abierto",

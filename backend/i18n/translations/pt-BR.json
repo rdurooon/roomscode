@@ -65,7 +65,11 @@
     "share_permission_denied": "Não foi possível compartilhar a tela (permissão negada ou cancelada).",
     "share_link_tooltip": "Copiar link de convite pra sala",
     "share_link_copied": "Link copiado!",
-    "share_link_copy_failed": "Não foi possível copiar o link."
+    "share_link_copy_failed": "Não foi possível copiar o link.",
+    "fullscreen_tooltip": "Tela cheia",
+    "hide_screen_tooltip": "Esconder tela",
+    "exit_fullscreen_button": "Sair de tela cheia",
+    "show_host_screen_tooltip": "Mostrar tela do host"
   },
   "chat": {
     "autocomplete_code_hint": "Cita uma linha de um arquivo aberto",

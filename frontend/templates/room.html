@@ -82,8 +82,45 @@
                 {% endif %}
                 {% if role == 'host' %}
                 <button id="share-toggle-btn" class="share-btn share-btn-center" type="button">{{ t('room.share_toggle_start') }}</button>
+                {% else %}
+                <!-- Cápsula de controles da tela compartilhada: só aparece com o
+                     mouse em cima do painel (ver .screen-panel:hover em
+                     layout.css) e só quando há vídeo de fato chegando (classe
+                     .has-video, alternada em setScreenActive dentro de
+                     room-init.js). Botão de tela cheia usa a Fullscreen API
+                     nativa no próprio #screen-panel; botão de esconder tela é
+                     puramente de layout local (não sincroniza com o Host nem
+                     outros Espectadores). -->
+                <div class="screen-hover-controls" id="screen-hover-controls">
+                    <button type="button" class="screen-control-btn" id="fullscreen-toggle-btn" title="{{ t('room.fullscreen_tooltip') }}" aria-label="{{ t('room.fullscreen_tooltip') }}">
+                        <span class="control-icon">{% include 'partials/fullscreen_icon.svg' %}</span>
+                    </button>
+                    <button type="button" class="screen-control-btn" id="hide-screen-toggle-btn" title="{{ t('room.hide_screen_tooltip') }}" aria-label="{{ t('room.hide_screen_tooltip') }}">
+                        <span class="control-icon">{% include 'partials/hide_screen_icon.svg' %}</span>
+                    </button>
+                </div>
+                <!-- Botão de sair da tela cheia: só existe (via :fullscreen no
+                     CSS) enquanto #screen-panel está em fullscreen nativo, e
+                     dentro disso alterna .visible conforme o mouse se move
+                     (ver initScreenControls em room-init.js). Esc também sai,
+                     via comportamento nativo do navegador + fullscreenchange. -->
+                <button type="button" class="exit-fullscreen-btn" id="exit-fullscreen-btn">
+                    {{ t('room.exit_fullscreen_button') }}
+                </button>
                 {% endif %}
             </section>
+
+            {% if role != 'host' %}
+            <!-- Botão de restaurar a tela do Host depois de "Esconder tela":
+                 fica fora do painel de código de propósito (irmão dele dentro
+                 de #viewer-grid, com position:absolute) pra não rolar junto
+                 com o conteúdo de código — ver comentário no CSS. Só visível
+                 quando o modo "esconder tela" está ativo e o Host está de
+                 fato compartilhando tela (ver updateViewerLayout). -->
+            <button type="button" class="show-host-screen-btn" id="show-host-screen-btn" title="{{ t('room.show_host_screen_tooltip') }}" aria-label="{{ t('room.show_host_screen_tooltip') }}" style="display:none;">
+                <span class="control-icon">{% include 'partials/show_screen_icon.svg' %}</span>
+            </button>
+            {% endif %}
 
             <div class="viewer-resize-handle" id="viewer-resize-handle" title="{{ t('room.resize_handle_tooltip') }}"></div>
 

@@ -267,6 +267,7 @@ body {
 }
 
 .viewer-grid {
+    position: relative; /* referência pro .show-host-screen-btn (posicionado fora do painel de código pra não rolar junto com o conteúdo) */
     display: flex;
     gap: 0;
     min-height: 0;
@@ -424,6 +425,163 @@ body {
     transform: none;
     padding: 6px 12px;
     font-size: 0.85em;
+}
+
+/* ---- Controles da tela compartilhada (Espectador): cápsula com "Tela
+   cheia" e "Esconder tela", só visível com o mouse em cima do painel e só
+   quando há vídeo de fato (classe .has-video, alternada junto com
+   setScreenActive em room-init.js — sem vídeo, os botões não fazem
+   sentido). Capsula em pílula, fundo semi-transparente na cor do site,
+   ícones na mesma cor dos botões do topo (var(--text-muted), acento no
+   hover). ---- */
+.screen-hover-controls {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(22, 22, 22, 0.65);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 6;
+}
+
+.screen-panel.has-video:hover .screen-hover-controls {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.screen-control-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.screen-control-btn:hover {
+    color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.control-icon {
+    display: flex;
+    width: 20px;
+    height: 20px;
+}
+
+.control-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ---- Modo tela cheia (Espectador): Fullscreen API nativa no próprio
+   #screen-panel. Fora do fullscreen o botão de sair nem existe no layout
+   (display:none); dentro, ele existe mas começa invisível/deslocado pra
+   baixo, e só ganha .visible via JS conforme o mouse se move (aparece
+   instantâneo, some deslizando — ver initScreenControls em
+   room-init.js). ---- */
+.screen-panel:fullscreen {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border-radius: 0;
+    border: none;
+    padding: 0;
+    overflow: hidden;
+}
+
+.screen-panel:fullscreen h3,
+.screen-panel:fullscreen .screen-hover-controls,
+.screen-panel:fullscreen .screen-placeholder {
+    display: none;
+}
+
+.screen-panel:fullscreen #video-display {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.exit-fullscreen-btn {
+    display: none;
+}
+
+.screen-panel:fullscreen .exit-fullscreen-btn {
+    display: flex;
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translate(-50%, 16px);
+    opacity: 0;
+    pointer-events: none;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 999px;
+    background: rgba(22, 22, 22, 0.75);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--accent-color);
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 7;
+}
+
+.screen-panel:fullscreen .exit-fullscreen-btn.transition-visibility {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.screen-panel:fullscreen .exit-fullscreen-btn.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+}
+
+/* ---- Botão de restaurar a tela do Host (modo "Esconder tela") ----
+   Ícone sozinho (sem texto, só tooltip via title), fundo semi-transparente
+   na cor do site, ícone na cor dos ícones do topo. Fica fora do painel de
+   código (irmão dele em #viewer-grid) pra não rolar com o conteúdo — ver
+   position:relative em .viewer-grid. */
+.show-host-screen-btn {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 6;
+    background: rgba(37, 37, 38, 0.85);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    padding: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.show-host-screen-btn:hover {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.show-host-screen-btn .control-icon {
+    width: 18px;
+    height: 18px;
 }
 
 /* ---- Painel de código ---- */

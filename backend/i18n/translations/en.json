@@ -65,7 +65,11 @@
     "share_permission_denied": "Couldn't share the screen (permission denied or cancelled).",
     "share_link_tooltip": "Copy room invite link",
     "share_link_copied": "Link copied!",
-    "share_link_copy_failed": "Couldn't copy the link."
+    "share_link_copy_failed": "Couldn't copy the link.",
+    "fullscreen_tooltip": "Fullscreen",
+    "hide_screen_tooltip": "Hide screen",
+    "exit_fullscreen_button": "Exit fullscreen",
+    "show_host_screen_tooltip": "Show host's screen"
   },
   "chat": {
     "autocomplete_code_hint": "Quotes a line from an open file",

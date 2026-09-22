@@ -154,13 +154,25 @@
 
     // ---- Estado de tela/código (só usado pro redimensionamento no Espectador) ----
     const viewerGrid = document.getElementById('viewer-grid');
+    const screenPanel = document.getElementById('screen-panel');
+    const showHostScreenBtn = document.getElementById('show-host-screen-btn');
     let screenActive = false;
     let codeActive = false;
+    // "Esconder tela": estado puramente local a este Espectador (não
+    // sincroniza com o Host nem com outros Espectadores) — só reorganiza o
+    // layout pra mostrar somente o painel de código, como se o Host não
+    // estivesse compartilhando tela nenhuma. Só tem efeito de fato enquanto
+    // screenActive também é true; se o Host parar de compartilhar de
+    // verdade, o botão de restaurar (e o efeito) somem sozinhos.
+    let manualScreenHidden = false;
 
     function updateViewerLayout() {
         if (roomState.isHost || !viewerGrid) return; // regra vale só pro Espectador
-        viewerGrid.classList.toggle('screen-only', screenActive && !codeActive);
-        viewerGrid.classList.toggle('code-only', codeActive && !screenActive);
+        if (screenPanel) screenPanel.classList.toggle('has-video', screenActive);
+        const effectiveHideScreen = manualScreenHidden && screenActive;
+        viewerGrid.classList.toggle('screen-only', screenActive && !codeActive && !effectiveHideScreen);
+        viewerGrid.classList.toggle('code-only', (codeActive && !screenActive) || effectiveHideScreen);
+        if (showHostScreenBtn) showHostScreenBtn.style.display = effectiveHideScreen ? 'flex' : 'none';
     }
 
     window.setScreenActive = (active) => {
@@ -176,6 +188,85 @@
         // vazia que isso substitui).
         if (codePanel) codePanel.classList.toggle('code-panel-empty', !active);
     };
+
+    // ---- Controles da tela compartilhada (Espectador): "Esconder tela" e
+    // "Tela cheia". A UI (cápsula, botão de restaurar) só existe no
+    // template do Espectador — no Host, os getElementById abaixo retornam
+    // null e nenhum listener é registrado. ----
+    const hideScreenBtn = document.getElementById('hide-screen-toggle-btn');
+    if (hideScreenBtn) {
+        hideScreenBtn.addEventListener('click', () => {
+            manualScreenHidden = true;
+            updateViewerLayout();
+        });
+    }
+    if (showHostScreenBtn) {
+        showHostScreenBtn.addEventListener('click', () => {
+            manualScreenHidden = false;
+            updateViewerLayout();
+        });
+    }
+
+    const fullscreenBtn = document.getElementById('fullscreen-toggle-btn');
+    const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
+
+    // Fullscreen API nativa direto no #screen-panel (assim o vídeo, e só
+    // ele, cobre o monitor inteiro — ver regras :fullscreen no CSS). Esc
+    // sai sozinho por comportamento padrão do navegador; só escutamos
+    // 'fullscreenchange' pra manter o botão de sair coerente com o estado
+    // real (inclusive se o navegador sair por conta própria).
+    function requestScreenFullscreen() {
+        if (!screenPanel) return;
+        const req = screenPanel.requestFullscreen || screenPanel.webkitRequestFullscreen;
+        if (!req) return;
+        req.call(screenPanel).catch((err) => {
+            console.error('RoomsCode: falha ao entrar em tela cheia.', err);
+        });
+    }
+    function exitScreenFullscreen() {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (document.fullscreenElement && exit) exit.call(document);
+    }
+    // Exposto pro webrtc-client.js: se o Host parar de compartilhar
+    // enquanto o Espectador está em tela cheia, não faz sentido continuar
+    // nela mostrando uma tela preta.
+    window.exitScreenFullscreen = exitScreenFullscreen;
+
+    if (fullscreenBtn) fullscreenBtn.addEventListener('click', requestScreenFullscreen);
+    if (exitFullscreenBtn) exitFullscreenBtn.addEventListener('click', exitScreenFullscreen);
+
+    // Botão "Sair de tela cheia": aparece de uma vez ao mexer o mouse, some
+    // deslizando pra baixo depois de um tempo parado. A classe
+    // 'transition-visibility' só entra na hora de esconder (dá o efeito de
+    // slide) e sai antes de mostrar de novo, pra essa aparição ser
+    // instantânea em vez de animada.
+    let hideExitBtnTimeout = null;
+    function showExitFullscreenBtn() {
+        if (!exitFullscreenBtn) return;
+        exitFullscreenBtn.classList.remove('transition-visibility');
+        exitFullscreenBtn.classList.add('visible');
+        clearTimeout(hideExitBtnTimeout);
+        hideExitBtnTimeout = setTimeout(() => {
+            exitFullscreenBtn.classList.add('transition-visibility');
+            exitFullscreenBtn.classList.remove('visible');
+        }, 2500);
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+        const isFullscreen = document.fullscreenElement === screenPanel;
+        if (isFullscreen) {
+            showExitFullscreenBtn();
+        } else {
+            clearTimeout(hideExitBtnTimeout);
+            if (exitFullscreenBtn) exitFullscreenBtn.classList.remove('visible', 'transition-visibility');
+        }
+    });
+
+    if (screenPanel) {
+        screenPanel.addEventListener('mousemove', () => {
+            if (document.fullscreenElement === screenPanel) showExitFullscreenBtn();
+        });
+    }
 
     // ---- Host: painel vazio muda de mensagem conforme a extensão do VS Code está ou não conectada ----
     const codeEmptyMessage = document.getElementById('code-empty-state-message');

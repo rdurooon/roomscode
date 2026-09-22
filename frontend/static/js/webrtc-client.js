@@ -335,6 +335,14 @@ function initWebRTCSpectator(socket, roomState) {
         if (window.setScreenActive) {
             window.setScreenActive(false);
         }
+        // Se o Espectador estava em tela cheia (ou com a tela escondida)
+        // quando o Host parou de compartilhar, não faz sentido continuar
+        // exibindo isso — sai da tela cheia sozinho; o modo "esconder tela"
+        // já se resolve sozinho em updateViewerLayout (só tem efeito
+        // enquanto screenActive é true).
+        if (window.exitScreenFullscreen) {
+            window.exitScreenFullscreen();
+        }
     }
 
     pc.ontrack = (event) => {

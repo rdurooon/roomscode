@@ -24,4 +24,4 @@ if __name__ == "__main__":
     # ligar nem por engano; se precisar de reload automático em
     # desenvolvimento, use `flask run --debug` apontando pra create_app, não
     # este script.
-    socketio.run(app, host="127.0.0.1", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
