@@ -1,0 +1,7 @@
+<!-- Link "Baixar extensão": leva à página da extensão na Marketplace do VS
+     Code. Fonte única da URL — usado na home e no painel de código do Host.
+     Abre em nova aba pra não tirar o Host da sala (e derrubar o
+     compartilhamento de tela) ao clicar. -->
+<a class="vscode-download-btn" href="https://marketplace.visualstudio.com/items?itemName=rdurooon.roomscode-extension" target="_blank" rel="noopener noreferrer" {{ extra_attrs | default('') | safe }}>
+    {{ t('home.download_extension_trigger') }}
+</a>

@@ -35,7 +35,6 @@ class Room:
     spectators: Dict[str, str] = field(default_factory=dict)  # sid -> nome
     files: Dict[str, OpenFile] = field(default_factory=dict)  # tab_id -> OpenFile
     host_cursor: Dict[str, int] = field(default_factory=dict)  # tab_id -> linha atual do host
-    code_visible_to_spectators: bool = False
     # Timestamp (time.monotonic()) de quando o socket do Host caiu, ou None
     # se o Host está conectado agora. Sala em "estado de graça" = host_sid
     # is None e host_disconnected_at is not None; nesse estado a sala

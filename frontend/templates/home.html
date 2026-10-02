@@ -14,9 +14,9 @@
         <span class="vscode-icon" aria-hidden="true">
             {% include 'partials/vscode_icon.svg' %}
         </span>
-        <button type="button" class="vscode-download-btn" id="home-download-trigger" data-open-download-modal data-i18n="home.download_extension_trigger">
-            {{ t('home.download_extension_trigger') }}
-        </button>
+        {% with extra_attrs = 'id="home-download-trigger" data-i18n="home.download_extension_trigger"' %}
+        {% include 'partials/extension_download_link.html' %}
+        {% endwith %}
     </div>
 
     <div class="language-switcher-corner">
@@ -47,12 +47,9 @@
         </div>
     </div>
 
-    {% include 'partials/download_modal.html' %}
-
     <script id="i18n-data" type="application/json">{{ i18n_json | safe }}</script>
     <script id="i18n-all-data" type="application/json">{{ i18n_all_json | safe }}</script>
     <script src="{{ url_for('static', filename='js/i18n-client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/language-switcher.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/download-modal.js') }}"></script>
 </body>
 </html>

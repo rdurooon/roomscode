@@ -261,12 +261,6 @@ class RoomManager:
         if room:
             room.host_cursor[tab_id] = line
 
-    def set_code_visibility(self, code: str, visible: bool) -> Optional[Room]:
-        room = self._rooms.get(code.upper()) if code else None
-        if room:
-            room.code_visible_to_spectators = visible
-        return room
-
 
 # Instância única compartilhada por toda a aplicação.
 room_manager = RoomManager()

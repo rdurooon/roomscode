@@ -12,11 +12,9 @@ from .events.cursor import register_cursor_events
 from .events.file_sync import register_file_sync_events
 from .events.connection_quality import register_connection_quality_events
 from .events.presence import register_presence_events
-from .events.room_settings import register_room_settings_events
 from .events.signaling import register_signaling_events
 from .i18n.locale import LOCALE_DISPLAY, get_all_translations, get_full_translations, resolve_locale, translate
 from .net import get_client_ip
-from .routes.downloads import downloads_bp
 from .routes.health import health_bp
 from .routes.home import home_bp
 from .routes.host import host_bp
@@ -134,7 +132,6 @@ def create_app():
     app.register_blueprint(host_bp)
     app.register_blueprint(spectator_bp)
     app.register_blueprint(health_bp)
-    app.register_blueprint(downloads_bp)
     # Catch-all de 1 segmento (ex: /A1B2C3) — registrado por último por
     # clareza; rotas fixas como as acima sempre têm prioridade no Werkzeug
     # independente da ordem de registro, então isso não afeta o roteamento.
@@ -167,7 +164,6 @@ def create_app():
     register_signaling_events(socketio)
     register_file_sync_events(socketio)
     register_cursor_events(socketio)
-    register_room_settings_events(socketio)
     register_chat_events(socketio)
     register_connection_quality_events(socketio)
 

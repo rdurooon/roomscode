@@ -340,9 +340,9 @@
         document.getElementById('room-code-display').textContent = data.code;
         document.getElementById('room-code-text').textContent = data.code;
         // O rótulo do token da extensão é fixo ("Copiar código da
-        // extensão") — não mostramos o valor real em nenhum estado, então
-        // não há texto pra atualizar aqui; só o clique (abaixo) usa o
-        // valor de verdade em roomState.extToken.
+        // extensão") — não mostramos o valor real, então não há texto pra
+        // atualizar aqui; só o clique (abaixo) usa o valor de verdade em
+        // roomState.extToken.
         stepForm.style.display = 'none';
         stepCode.style.display = 'block';
 
@@ -461,7 +461,7 @@
 
         hostDisplayName = data.host_name || null;
         updateParticipantNames();
-        setSpectatorCodeVisible(!!data.code_visible_to_spectators);
+        showSpectatorRoomCode();
 
         if (window.loadInitialTabs) {
             window.loadInitialTabs(data.tabs, data.host_cursor);
@@ -596,20 +596,11 @@
     if (brandExitBtn) brandExitBtn.addEventListener('click', openExitModal);
     if (exitIconBtn) exitIconBtn.addEventListener('click', openExitModal);
 
-    // ---- Código da sala: olho revela/borra, clique copia ----
-    const eyeToggleBtn = document.getElementById('eye-toggle-btn');
-    const roomCodeWrapper = document.getElementById('room-code-wrapper');
+    // ---- Código da sala (Host): sempre visível, clique copia ----
     const roomCodePill = document.getElementById('room-code-pill');
 
-    if (eyeToggleBtn && roomCodeWrapper) {
-        eyeToggleBtn.addEventListener('click', () => {
-            roomCodeWrapper.classList.toggle('revealed');
-        });
-    }
-
-    // ---- Token da extensão VS Code: rótulo fixo, não afetado pelo botão
-    // de olho (só o código da sala é revelado/borrado). Clique copia o
-    // token de verdade pro clipboard, separado do código de sala. ----
+    // ---- Token da extensão VS Code: rótulo fixo. Clique copia o token de
+    // verdade pro clipboard, separado do código de sala. ----
     const extTokenPill = document.getElementById('ext-token-pill');
     if (extTokenPill) {
         extTokenPill.addEventListener('click', async () => {
@@ -624,38 +615,15 @@
         });
     }
 
-    // ---- Host: liberar/bloquear espectadores verem o código da sala ----
-    const visibilityToggleBtn = document.getElementById('visibility-toggle-btn');
-    let codeVisibleToSpectators = false;
-
-    if (visibilityToggleBtn) {
-        visibilityToggleBtn.addEventListener('click', () => {
-            codeVisibleToSpectators = !codeVisibleToSpectators;
-            visibilityToggleBtn.classList.toggle('unlocked', codeVisibleToSpectators);
-            visibilityToggleBtn.title = codeVisibleToSpectators
-                ? window.t('room.visibility_unlock_tooltip')
-                : window.t('room.visibility_lock_tooltip');
-
-            if (roomState.code) {
-                socket.emit('set_code_visibility', {
-                    room_code: roomState.code,
-                    visible: codeVisibleToSpectators,
-                });
-            }
-        });
-    }
-
-    // ---- Espectador: código da sala aparece quando o Host libera ----
+    // ---- Espectador: código da sala sempre visível depois de entrar ----
     const spectatorCodeWrapper = document.getElementById('spectator-room-code-wrapper');
     const spectatorCodePill = document.getElementById('spectator-room-code-pill');
 
-    function setSpectatorCodeVisible(visible) {
+    function showSpectatorRoomCode() {
         if (!spectatorCodeWrapper) return;
-        spectatorCodeWrapper.style.display = visible ? 'flex' : 'none';
-        if (visible && roomState.code) {
-            const textEl = document.getElementById('spectator-room-code-text');
-            if (textEl) textEl.textContent = roomState.code;
-        }
+        spectatorCodeWrapper.style.display = 'flex';
+        const textEl = document.getElementById('spectator-room-code-text');
+        if (textEl && roomState.code) textEl.textContent = roomState.code;
     }
 
     if (spectatorCodePill) {
@@ -671,28 +639,26 @@
         });
     }
 
-    socket.on('code_visibility_changed', (data) => setSpectatorCodeVisible(!!data.visible));
-
-    // ---- Botão de compartilhar: copia um link curto (origem + código da
-    // sala) que leva quem clicar direto pro fluxo de Espectador, com o
-    // código já preenchido (ver backend/routes/room_link.py e o
-    // value="{{ prefill_code }}" do modal-code-input). Existe pro Host
-    // sempre e pro Espectador só quando o código está liberado — mesmo id
-    // nos dois lados do template, só um deles é renderizado por vez. ----
-    const shareLinkBtn = document.getElementById('share-room-link-btn');
-    if (shareLinkBtn) {
-        shareLinkBtn.addEventListener('click', async () => {
-            if (!roomState.code) return;
-            const link = `${window.location.origin}/${roomState.code}`;
-            const ok = await copyTextToClipboard(link);
-            if (window.showToast) {
-                window.showToast(
-                    ok ? window.t('room.share_link_copied') : window.t('room.share_link_copy_failed'),
-                    ok ? 'success' : 'error'
-                );
-            }
-        });
+    // ---- Botões de compartilhar (.share-link-btn): copiam um link curto
+    // (origem + código da sala) que leva quem clicar direto pro fluxo de
+    // Espectador, com o código já preenchido (ver
+    // backend/routes/room_link.py e o value="{{ prefill_code }}" do
+    // modal-code-input). Existem na topbar (Host e Espectador) e no popup
+    // de sala criada (Host) — todos com o mesmo comportamento. ----
+    async function copyRoomShareLink() {
+        if (!roomState.code) return;
+        const link = `${window.location.origin}/${roomState.code}`;
+        const ok = await copyTextToClipboard(link);
+        if (window.showToast) {
+            window.showToast(
+                ok ? window.t('room.share_link_copied') : window.t('room.share_link_copy_failed'),
+                ok ? 'success' : 'error'
+            );
+        }
     }
+    document.querySelectorAll('.share-link-btn').forEach((btn) => {
+        btn.addEventListener('click', copyRoomShareLink);
+    });
 
     // ---- Espectador: checkbox de seguir o Host ----
     const followCheckbox = document.getElementById('follow-host-checkbox');

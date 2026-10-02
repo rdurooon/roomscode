@@ -101,61 +101,6 @@ body {
     gap: 6px;
 }
 
-.visibility-toggle-btn {
-    background: none;
-    border: none;
-    padding: 2px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-}
-
-.lock-icon {
-    width: 18px;
-    height: 18px;
-    color: var(--text-muted);
-}
-
-.lock-icon-open {
-    display: none;
-}
-
-.visibility-toggle-btn.unlocked .lock-icon-closed {
-    display: none;
-}
-
-.visibility-toggle-btn.unlocked .lock-icon-open {
-    display: block;
-    color: var(--accent-color);
-}
-
-.eye-toggle-btn {
-    background: none;
-    border: none;
-    padding: 2px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-}
-
-.eye-icon {
-    width: 18px;
-    height: 18px;
-    color: var(--text-muted);
-}
-
-.eye-icon-closed {
-    display: none;
-}
-
-.room-code-wrapper.revealed .eye-icon-open {
-    display: none;
-}
-
-.room-code-wrapper.revealed .eye-icon-closed {
-    display: block;
-}
-
 .room-code-pill {
     display: inline-flex;
     align-items: center;
@@ -170,34 +115,8 @@ body {
     user-select: none;
 }
 
-/* Blur isolado num <span> interno (.room-code-text): só os caracteres ficam ilegíveis, borda e fundo do pill continuam nítidos. */
-.room-code-text {
-    display: inline-block;
-    filter: blur(5px);
-    transition: filter 0.15s ease;
-}
-
-.room-code-wrapper.revealed .room-code-text {
-    filter: none;
-}
-
-/* Lado do Espectador: quando o Host libera, o código aparece direto,
-   sem o botão de olho e sem o blur — não tem estado "oculto" aqui. */
-.room-code-pill-plain .room-code-text {
-    filter: none;
-}
-
-/* Token de controle da extensão VS Code: ao contrário do código da sala,
-   esse pill NUNCA mostra o valor real — o texto é um rótulo fixo ("Copiar
-   código da extensão"), então não existe nada pra revelar/esconder. Por
-   isso ele fica de fora do botão de olho: a seletor abaixo tem mais
-   especificidade que ".room-code-wrapper.revealed .room-code-text" e
-   sempre vence, independente do estado do olho. Nunca aparece pro
-   Espectador, esse pill só existe no lado do Host. */
-.room-code-wrapper .ext-token-pill .room-code-text {
-    filter: none;
-}
-
+/* Token de controle da extensão VS Code: o texto é um rótulo fixo ("Copiar
+   código da extensão"); o valor real só vai pro clipboard no clique. */
 .ext-token-pill {
     font-size: 0.8em;
     border-color: var(--text-muted);
@@ -228,16 +147,9 @@ body {
     fill: var(--accent-color);
 }
 
-/* Botão de compartilhar link da sala (canto do Host sempre, canto do
-   Espectador só quando o Host libera o código — fica dentro do mesmo
-   wrapper que aparece/some junto com o código, ver setSpectatorCodeVisible
-   em room-init.js). Fica à esquerda do código da sala (não à direita) e
-   usa a mesma cor/tamanho dos outros ícones desse grupo (cadeado e olho),
-   via currentColor + var(--text-muted) — o ícone antigo, colorido, foi
-   trocado por um monocromático de propósito pra isso ser possível.
-   Também some/aparece junto com o código quando o Host tranca/libera a
-   sala (via .share-link-btn dentro de .room-code-wrapper), sem precisar
-   de nenhum JS a mais. */
+/* Botão de compartilhar link da sala: aparece na topbar (Host e
+   Espectador, sempre ao lado esquerdo do código) e no popup de sala
+   criada do Host. Ícone monocromático (currentColor + var(--text-muted)). */
 .share-link-btn {
     background: none;
     border: none;
@@ -1000,6 +912,40 @@ body {
     margin-top: 12px;
 }
 
+/* Código da sala + botão de compartilhar link, lado a lado no popup de
+   sala criada. O botão sobrescreve o estilo genérico de .modal-card button
+   (largura total, margem) pra ficar só o ícone ao lado direito do código. */
+.room-code-display-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.room-code-display-row .room-code-display {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+.modal-card .modal-share-link-btn {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    padding: 10px;
+    background: none;
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+}
+
+.modal-share-link-btn .share-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.modal-share-link-btn:hover .share-icon svg {
+    color: var(--accent-color);
+}
+
 /* Linha de ações do modal (ex: Voltar + Criar sala/Entrar, ou
    Cancelar + Sair) — os botões dividem o espaço lado a lado. */
 .modal-actions {
@@ -1084,8 +1030,8 @@ body {
 }
 
 /* ---- Botão "Baixar extensão" (canto superior direito da home, e também
-   reaproveitado dentro do painel de código quando o Host não está
-   compartilhando nada) + ícone ao lado + modal de instruções ---- */
+   reaproveitado dentro do painel de código quando a extensão ainda não
+   está conectada) + ícone ao lado. É um link pra Marketplace do VS Code. ---- */
 
 .download-trigger {
     display: flex;
@@ -1188,10 +1134,15 @@ body {
     height: 26px;
 }
 
-/* Reaproveita o estilo padrão de <button> já definido lá embaixo em
-   "Elementos genéricos" (fundo na cor de destaque, texto escuro, negrito)
-   — só ajusta tamanho/raio/sombra pra combinar com .home-btn. */
+/* É uma <a>, então não herda o estilo genérico de <button> ("Elementos
+   genéricos", lá embaixo) — replica aqui: fundo na cor de destaque, texto
+   escuro, negrito. Tamanho/raio/sombra combinam com .home-btn. */
 .vscode-download-btn {
+    background: var(--accent-color);
+    color: #111;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1199,38 +1150,6 @@ body {
     border-radius: 8px;
     box-shadow: 0 0 14px var(--accent-glow);
     white-space: nowrap;
-}
-
-.download-modal-steps {
-    text-align: left;
-    color: var(--text-muted);
-    font-size: 0.85em;
-    line-height: 1.5;
-    margin: 14px 0 0;
-    padding-left: 20px;
-}
-
-.download-modal-steps code {
-    background: rgba(255, 255, 255, 0.08);
-    padding: 1px 5px;
-    border-radius: 4px;
-    color: var(--text-primary);
-}
-
-/* O link de download real é uma <a>, então não herda o estilo genérico
-   de <button> do fim do arquivo — replica o mesmo visual aqui. */
-.modal-actions a.modal-btn-primary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    background: var(--accent-color);
-    color: #111;
-    font-weight: bold;
-    border-radius: 4px;
-    padding: 8px 10px;
-    font-size: 1em;
-    flex: 1 1 0;
 }
 
 .cite-line-btn {

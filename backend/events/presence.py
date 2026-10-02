@@ -87,7 +87,6 @@ def register_presence_events(socketio):
                 "code": room.code,
                 "host_name": room.host_name,
                 "ext_token": room.ext_token,
-                "code_visible_to_spectators": room.code_visible_to_spectators,
                 "extension_connected": room.extension_sid is not None,
                 "spectator_sids": list(room.spectators.keys()),
                 "tabs": [
@@ -136,7 +135,6 @@ def register_presence_events(socketio):
             {
                 "code": room.code,
                 "host_name": room.host_name,
-                "code_visible_to_spectators": room.code_visible_to_spectators,
                 "tabs": [
                     {
                         "tabId": tab_id,

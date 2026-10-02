@@ -56,27 +56,16 @@ Espectador, o código da sala) antes de liberar a interface.
    "Copiar código da extensão" — não precisa mais do código da sala nesse
    passo, o código da extensão já identifica a sala sozinho).
 
-## Baixando a extensão pela home
+## Baixando a extensão
 
-A home (`/`) tem um botão **"Baixar extensão"** no canto superior direito
-(abre um modal com instruções curtas de instalação antes de baixar),
-servido direto pela rota `/baixar-extensao` (ver `backend/routes/downloads.py`) —
-útil enquanto a extensão não está publicada na Marketplace (`vsce publish`).
-O arquivo em si vive em `frontend/static/downloads/roomscode-extension.vsix`.
+A home (`/`) e o painel de código do Host (enquanto a extensão ainda não
+está conectada à sala) têm um botão **"Baixar extensão"** que abre, em
+nova aba, a página da extensão na Marketplace do VS Code:
+https://marketplace.visualstudio.com/items?itemName=rdurooon.roomscode-extension
 
-**Importante:** este repositório e o `roomscode-extension` são
-independentes agora — atualizar a extensão lá **não** atualiza esse
-arquivo aqui sozinho. Pra publicar uma versão nova pela home, depois de
-gerar o `.vsix` no repositório da extensão (`npm run package`), copie o
-arquivo gerado pra cá, sobrescrevendo o nome fixo:
-
-```bash
-cp ../roomscode-extension/roomscode-extension-X.Y.Z.vsix \
-   frontend/static/downloads/roomscode-extension.vsix
-```
-
-O link na home não muda (nome de arquivo fixo, independente da versão) —
-só o conteúdo é atualizado.
+A URL fica num único lugar: `frontend/templates/partials/extension_download_link.html`.
+Atualizar a extensão passa a ser só um `vsce publish` no repositório
+`roomscode-extension` — este repositório não guarda mais nenhum `.vsix`.
 
 ## 2. Rodando em produção (Docker)
 
@@ -156,13 +145,15 @@ exibida pra área de transferência, o outro baixa o arquivo (mantendo nome e
 extensão originais, ex: `main.py`). Disponível tanto pro Host quanto pro
 Espectador.
 
-## Liberando o código da sala pros Espectadores
+## Código da sala e link de convite
 
-Por padrão, só o Host vê o código de entrada da sala (com o botão de olho
-pra revelar/ocultar). Ao lado desse botão, um ícone de cadeado permite ao
-Host liberar esse código também pros Espectadores — quando liberado, o
-código aparece na tela de todo mundo (sem botão de olho do lado deles,
-sempre visível) e pode ser copiado com um clique, igual do lado do Host.
+O código da sala **não é segredo**: aparece sempre, sem desfoque, tanto pro
+Host quanto pros Espectadores (o que identifica a conexão da extensão do VS
+Code é o código da extensão, separado). Na barra superior, um clique no
+código copia o código, e o ícone de compartilhar à esquerda dele copia o
+link de convite (`/<código>`). O mesmo ícone aparece ao lado do código no
+popup "Compartilhe esse código com os espectadores:" que o Host vê ao criar
+a sala, com a mesma função.
 
 ## Entrando e saindo da sala
 

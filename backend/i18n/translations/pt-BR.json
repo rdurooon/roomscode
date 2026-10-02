@@ -5,15 +5,6 @@
     "spectator_button": "Espectador",
     "download_extension_trigger": "Baixar extensão"
   },
-  "download_modal": {
-    "title": "Instalar a extensão do VS Code",
-    "description": "A extensão captura o arquivo ativo do seu VS Code e envia pra sala — só o Host precisa instalá-la.",
-    "step1": "Baixe o arquivo <code>.vsix</code> pelo botão abaixo.",
-    "step2": "No VS Code, abra <code>Ctrl+Shift+P</code>.",
-    "step3": "Escolha \"Extensions: Install from VSIX...\" e selecione o arquivo baixado.",
-    "back_button": "Voltar",
-    "download_button": "Baixar"
-  },
   "room": {
     "title_host": "RoomsCode — Host",
     "title_spectator": "RoomsCode — Espectador",
@@ -54,9 +45,6 @@
     "follow_host_label": "Seguir o Host",
     "copy_file_tooltip": "Copiar código do arquivo atual",
     "download_file_tooltip": "Baixar arquivo atual",
-    "eye_toggle_tooltip": "Mostrar/ocultar código da sala",
-    "visibility_lock_tooltip": "Permitir espectadores verem o código da sala",
-    "visibility_unlock_tooltip": "Bloquear espectadores de verem o código da sala",
     "room_code_copied": "Código da sala copiado!",
     "room_code_copy_failed": "Não foi possível copiar o código.",
     "ext_token_copied": "Token da extensão copiado!",

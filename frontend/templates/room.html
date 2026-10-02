@@ -21,47 +21,24 @@
         <div class="topbar-right">
             {% if role == 'host' %}
             <div class="room-code-wrapper" id="room-code-wrapper">
-                <button type="button" class="visibility-toggle-btn" id="visibility-toggle-btn" title="{{ t('room.visibility_lock_tooltip') }}" aria-label="{{ t('room.visibility_lock_tooltip') }}">
-                    <svg class="lock-icon lock-icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                    <svg class="lock-icon lock-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                    </svg>
-                </button>
-                <button type="button" class="eye-toggle-btn" id="eye-toggle-btn" title="{{ t('room.eye_toggle_tooltip') }}" aria-label="{{ t('room.eye_toggle_tooltip') }}">
-                    <svg class="eye-icon eye-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    <svg class="eye-icon eye-icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <line x1="2" y1="2" x2="22" y2="22"></line>
-                    </svg>
-                </button>
                 <button type="button" class="share-link-btn" id="share-room-link-btn" title="{{ t('room.share_link_tooltip') }}" aria-label="{{ t('room.share_link_tooltip') }}">
                     <span class="share-icon">{% include 'partials/share_icon.svg' %}</span>
                 </button>
                 <span class="room-code-pill" id="room-code-pill" title="{{ t('room.click_to_copy') }}">
                     <span class="room-code-text" id="room-code-text">------</span>
                 </span>
-                <!-- Token da extensão: sempre escondido, sem afetar/ser afetado pelo
-                     botão de olho acima — o rótulo é fixo (não é o valor real), então
-                     não tem estado "revelado". Clique continua copiando o token de
-                     verdade pro clipboard. -->
+                <!-- Token da extensão: o rótulo é fixo (não é o valor real); o
+                     clique copia o token de verdade pro clipboard. -->
                 <span class="room-code-pill ext-token-pill" id="ext-token-pill" title="{{ t('room.ext_token_tooltip') }}">
                     <span class="room-code-text">{{ t('room.copy_extension_code') }}</span>
                 </span>
             </div>
             {% else %}
-            <div class="room-code-wrapper" id="spectator-room-code-wrapper" style="display:none;">
+            <div class="room-code-wrapper" id="spectator-room-code-wrapper" style="display:none;"><!-- exibido por showSpectatorRoomCode() ao entrar na sala -->
                 <button type="button" class="share-link-btn" id="share-room-link-btn" title="{{ t('room.share_link_tooltip') }}" aria-label="{{ t('room.share_link_tooltip') }}">
                     <span class="share-icon">{% include 'partials/share_icon.svg' %}</span>
                 </button>
-                <span class="room-code-pill room-code-pill-plain" id="spectator-room-code-pill" title="{{ t('room.click_to_copy') }}">
+                <span class="room-code-pill" id="spectator-room-code-pill" title="{{ t('room.click_to_copy') }}">
                     <span class="room-code-text" id="spectator-room-code-text">------</span>
                 </span>
             </div>
@@ -171,9 +148,9 @@
                         <span class="vscode-icon" aria-hidden="true">
                             {% include 'partials/vscode_icon.svg' %}
                         </span>
-                        <button type="button" class="vscode-download-btn" id="code-panel-download-trigger" data-open-download-modal>
-                            {{ t('home.download_extension_trigger') }}
-                        </button>
+                        {% with extra_attrs = 'id="code-panel-download-trigger"' %}
+                        {% include 'partials/extension_download_link.html' %}
+                        {% endwith %}
                     </div>
                     {% else %}
                     <p>{{ t('room.no_code_shared') }}</p>
@@ -221,7 +198,12 @@
 
             <div id="modal-step-code" style="display:none;">
                 <p>{{ t('room.modal_share_code_text') }}</p>
-                <div class="room-code-display" id="room-code-display">------</div>
+                <div class="room-code-display-row">
+                    <div class="room-code-display" id="room-code-display">------</div>
+                    <button type="button" class="share-link-btn modal-share-link-btn" id="modal-share-room-link-btn" title="{{ t('room.share_link_tooltip') }}" aria-label="{{ t('room.share_link_tooltip') }}">
+                        <span class="share-icon">{% include 'partials/share_icon.svg' %}</span>
+                    </button>
+                </div>
                 <button type="button" id="modal-enter-room-btn">{{ t('room.modal_enter_room_button') }}</button>
             </div>
         </div>
@@ -241,10 +223,6 @@
         </div>
     </div>
 
-    {% if role == 'host' %}
-    {% include 'partials/download_modal.html' %}
-    {% endif %}
-
     <!-- Bibliotecas de terceiros vendorizadas em frontend/static/vendor/ (ver
          README.md da pasta) em vez de carregadas via CDN em runtime — elimina
          a dependência de terceiros e a necessidade de SRI. -->
@@ -261,9 +239,6 @@
     <script src="{{ url_for('static', filename='js/chat-autocomplete.js') }}"></script>
     <script src="{{ url_for('static', filename='js/webrtc-client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/panel-resize.js') }}"></script>
-    {% if role == 'host' %}
-    <script src="{{ url_for('static', filename='js/download-modal.js') }}"></script>
-    {% endif %}
     <script src="{{ url_for('static', filename='js/room-init.js') }}"></script>
 </body>
 </html>
