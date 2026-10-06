@@ -1,0 +1,56 @@
+<!-- Modal "Como usar" da home: apresenta o site e traz um tutorial curto para
+     Host e Espectador. Todo o texto vem de howto.* nos arquivos de tradução
+     (data-i18n / data-i18n-html, pra trocar de idioma ao vivo pelo seletor da
+     home — ver language-switcher.js). Os textos com <strong>/<code> são
+     nossos, nunca entrada de usuário, então `| safe` é seguro. Abertura,
+     abas e fechamento: howto-modal.js. -->
+<div class="modal-overlay" id="howto-modal" style="display:none;">
+    <div class="modal-card howto-card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+        <h2 id="howto-title" data-i18n="howto.title">{{ t('howto.title') }}</h2>
+        <p class="howto-intro" data-i18n="howto.intro">{{ t('howto.intro') }}</p>
+
+        <div class="howto-tabs" role="tablist">
+            <button type="button" class="howto-tab" role="tab" id="howto-tab-host" aria-controls="howto-panel-host" aria-selected="true" data-howto-tab="host" data-i18n="howto.tab_host">{{ t('howto.tab_host') }}</button>
+            <button type="button" class="howto-tab" role="tab" id="howto-tab-spectator" aria-controls="howto-panel-spectator" aria-selected="false" data-howto-tab="spectator" data-i18n="howto.tab_spectator">{{ t('howto.tab_spectator') }}</button>
+        </div>
+
+        <div class="howto-body">
+            <div class="howto-panel" role="tabpanel" id="howto-panel-host" aria-labelledby="howto-tab-host">
+                {% for topic, subs in [(1, [1]), (2, [1, 2, 3]), (3, [1])] %}
+                <section class="howto-topic">
+                    <h3 class="howto-topic-title"><span class="howto-topic-num">{{ topic }}</span><span data-i18n="howto.host_t{{ topic }}_title">{{ t('howto.host_t' ~ topic ~ '_title') }}</span></h3>
+                    <p class="howto-step-text" data-i18n-html="howto.host_t{{ topic }}_text">{{ t('howto.host_t' ~ topic ~ '_text') | safe }}</p>
+                    <div class="howto-subtopics">
+                        {% for sub in subs %}
+                        <div class="howto-subtopic">
+                            <h4 class="howto-subtopic-title"><span class="howto-subtopic-num">{{ topic }}.{{ sub }}</span><span data-i18n="howto.host_t{{ topic }}_{{ sub }}_title">{{ t('howto.host_t' ~ topic ~ '_' ~ sub ~ '_title') }}</span></h4>
+                            <p class="howto-step-text" data-i18n-html="howto.host_t{{ topic }}_{{ sub }}_text">{{ t('howto.host_t' ~ topic ~ '_' ~ sub ~ '_text') | safe }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+            </div>
+            <div class="howto-panel" role="tabpanel" id="howto-panel-spectator" aria-labelledby="howto-tab-spectator" hidden>
+                {% for topic, subs in [(1, [1, 2]), (2, [1, 2]), (3, [1, 2, 3])] %}
+                <section class="howto-topic">
+                    <h3 class="howto-topic-title"><span class="howto-topic-num">{{ topic }}</span><span data-i18n="howto.spectator_t{{ topic }}_title">{{ t('howto.spectator_t' ~ topic ~ '_title') }}</span></h3>
+                    <p class="howto-step-text" data-i18n-html="howto.spectator_t{{ topic }}_text">{{ t('howto.spectator_t' ~ topic ~ '_text') | safe }}</p>
+                    <div class="howto-subtopics">
+                        {% for sub in subs %}
+                        <div class="howto-subtopic">
+                            <h4 class="howto-subtopic-title"><span class="howto-subtopic-num">{{ topic }}.{{ sub }}</span><span data-i18n="howto.spectator_t{{ topic }}_{{ sub }}_title">{{ t('howto.spectator_t' ~ topic ~ '_' ~ sub ~ '_title') }}</span></h4>
+                            <p class="howto-step-text" data-i18n-html="howto.spectator_t{{ topic }}_{{ sub }}_text">{{ t('howto.spectator_t' ~ topic ~ '_' ~ sub ~ '_text') | safe }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="modal-actions howto-actions">
+            <button type="button" class="btn-outline" id="howto-close-btn" data-i18n="howto.close_button">{{ t('howto.close_button') }}</button>
+        </div>
+    </div>
+</div>

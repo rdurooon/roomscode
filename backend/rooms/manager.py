@@ -106,13 +106,73 @@ class RoomManager:
             self._sid_to_code[sid] = room.code
             return room
 
-    def add_spectator(self, code: str, sid: str, name: str) -> Optional[Room]:
+    @staticmethod
+    def _name_key(name) -> str:
+        return str(name).strip().casefold()
+
+    def add_spectator(self, code: str, sid: str, name: str, client_id: str = "") -> Optional[Room]:
         with self._lock:
             room = self._rooms.get(code.upper()) if code else None
             if room is None:
                 return None
             room.spectators[sid] = name
+            room.spectator_client_ids[sid] = client_id
+            # Quem volta depois de uma expulsão (ou de uma restrição de chat)
+            # continua restrito: reconhecido pelo id do navegador ou pelo nome.
+            if (client_id and client_id in room.restricted_client_ids) or self._name_key(name) in room.restricted_names:
+                room.muted_sids.add(sid)
             self._sid_to_code[sid] = room.code
+            return room
+
+    def is_chat_muted(self, room: Room, sid: str) -> bool:
+        return sid in room.muted_sids
+
+    def get_roster(self, room: Room) -> List[dict]:
+        """Lista de espectadores com o sid de cada um e se o chat está
+        restrito — só vai para o Host (os espectadores recebem só nomes)."""
+        return [
+            {"sid": sid, "name": name, "muted": sid in room.muted_sids}
+            for sid, name in room.spectators.items()
+        ]
+
+    def _restrict_identity(self, room: Room, sid: str) -> None:
+        client_id = room.spectator_client_ids.get(sid, "")
+        if client_id:
+            room.restricted_client_ids.add(client_id)
+        room.restricted_names.add(self._name_key(room.spectators.get(sid, "")))
+
+    def _release_identity(self, room: Room, sid: str) -> None:
+        client_id = room.spectator_client_ids.get(sid, "")
+        room.restricted_client_ids.discard(client_id)
+        room.restricted_names.discard(self._name_key(room.spectators.get(sid, "")))
+
+    def set_chat_muted(self, code: str, sid: str, muted: bool) -> Optional[Room]:
+        """Restringe/libera o chat de um espectador. A restrição também vale
+        pra esse espectador se ele sair e voltar (ver add_spectator)."""
+        with self._lock:
+            room = self._rooms.get(code.upper()) if code else None
+            if room is None or sid not in room.spectators:
+                return None
+            if muted:
+                room.muted_sids.add(sid)
+                self._restrict_identity(room, sid)
+            else:
+                room.muted_sids.discard(sid)
+                self._release_identity(room, sid)
+            return room
+
+    def kick_spectator(self, code: str, sid: str) -> Optional[Room]:
+        """Remove o espectador da sala. Ele pode voltar, mas já volta com o
+        chat restrito (a identidade dele fica na lista de restrições)."""
+        with self._lock:
+            room = self._rooms.get(code.upper()) if code else None
+            if room is None or sid not in room.spectators:
+                return None
+            self._restrict_identity(room, sid)
+            room.spectators.pop(sid, None)
+            room.spectator_client_ids.pop(sid, None)
+            room.muted_sids.discard(sid)
+            self._sid_to_code.pop(sid, None)
             return room
 
     def remove_sid(self, sid: str) -> Tuple[Optional[Room], bool, bool]:
@@ -144,6 +204,8 @@ class RoomManager:
                 room.extension_sid = None
             else:
                 room.spectators.pop(sid, None)
+                room.spectator_client_ids.pop(sid, None)
+                room.muted_sids.discard(sid)
 
             return room, was_host, was_extension
 

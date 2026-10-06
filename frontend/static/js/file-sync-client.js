@@ -137,6 +137,36 @@ function highlightHostLine() {
     });
 }
 
+/**
+ * Leva o usuário até uma linha do arquivo `filename` (clique numa citação
+ * !code(...) do chat): troca pra aba desse arquivo se preciso, rola até a
+ * linha e a destaca por um instante. Devolve false se o arquivo não está mais
+ * aberto ou a linha não existe mais (o chat avisa com um toast).
+ */
+function goToCodeLine(filename, lineNumber) {
+    const tabId = tabOrder.find((id) => openTabs[id] && openTabs[id].filename === filename);
+    if (!tabId) return false;
+
+    const lines = openTabs[tabId].content ? openTabs[tabId].content.split('\n') : [];
+    if (!Number.isInteger(lineNumber) || lineNumber < 1 || lineNumber > lines.length) return false;
+
+    // Troca manual de aba: com "Seguir o Host" ligado ele desliga sozinho
+    // (ver switchToTab), senão o próximo movimento do Host puxaria de volta.
+    if (tabId !== activeViewTabId) switchToTab(tabId);
+
+    const cells = Array.from(document.querySelectorAll(`#code-content .hljs-ln-line[data-line-number="${lineNumber}"]`));
+    if (!cells.length) return false;
+
+    cells.forEach((cell) => {
+        cell.classList.remove('line-jump-flash');
+        void cell.offsetWidth; // reinicia a animação se clicar na mesma linha de novo
+        cell.classList.add('line-jump-flash');
+    });
+    if (cells[0].scrollIntoView) cells[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(() => cells.forEach((cell) => cell.classList.remove('line-jump-flash')), 2000);
+    return true;
+}
+
 /** Rola a tela até a linha do Host na aba atual (usado pelo modo seguir). */
 function scrollToHostLine() {
     const line = hostCursorByTab[activeViewTabId];
@@ -315,6 +345,8 @@ window.getFileLinesForFilename = (filename) => {
     return openTabs[tabId].content ? openTabs[tabId].content.split('\n') : [];
 };
 
+window.goToCodeLine = goToCodeLine;
+
 window.getActiveTabFilename = () => (openTabs[activeViewTabId] ? openTabs[activeViewTabId].filename : null);
 
 // ---- Exposto apenas para testes automatizados (jsdom) ----
@@ -370,6 +402,9 @@ function initLineQuoting() {
 
     codeEl.addEventListener('mouseup', () => {
         removeCiteBtn();
+
+        // Com o chat restrito pelo Host não dá pra citar linha (copiar/baixar seguem liberados).
+        if (window.isChatMuted && window.isChatMuted()) return;
 
         const tab = openTabs[activeViewTabId];
         if (!tab) return;

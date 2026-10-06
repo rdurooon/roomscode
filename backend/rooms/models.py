@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
 
 
 @dataclass
@@ -33,6 +33,15 @@ class Room:
     # (None se nenhuma extensão estiver conectada agora).
     extension_sid: Optional[str] = None
     spectators: Dict[str, str] = field(default_factory=dict)  # sid -> nome
+    # sid -> id anônimo do navegador do espectador ("" se não enviou). Nunca
+    # é enviado a ninguém: só serve pra reconhecer quem volta à sala.
+    spectator_client_ids: Dict[str, str] = field(default_factory=dict)
+    # sids de espectadores com o chat restrito agora (ver RoomManager.set_chat_muted).
+    muted_sids: Set[str] = field(default_factory=set)
+    # Restrições que sobrevivem a sair/voltar (F5, expulsão): ids de navegador e
+    # nomes normalizados. Quem entrar casando com algum dos dois já entra restrito.
+    restricted_client_ids: Set[str] = field(default_factory=set)
+    restricted_names: Set[str] = field(default_factory=set)
     files: Dict[str, OpenFile] = field(default_factory=dict)  # tab_id -> OpenFile
     host_cursor: Dict[str, int] = field(default_factory=dict)  # tab_id -> linha atual do host
     # Timestamp (time.monotonic()) de quando o socket do Host caiu, ou None

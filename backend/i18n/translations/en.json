@@ -3,7 +3,8 @@
     "subtitle": "Live programming classes and presentations.",
     "host_button": "Host",
     "spectator_button": "Viewer",
-    "download_extension_trigger": "Download extension"
+    "download_extension_trigger": "Download extension",
+    "how_to_use_link": "How to use"
   },
   "room": {
     "title_host": "RoomsCode — Host",
@@ -57,7 +58,11 @@
     "fullscreen_tooltip": "Fullscreen",
     "hide_screen_tooltip": "Hide screen",
     "exit_fullscreen_button": "Exit fullscreen",
-    "show_host_screen_tooltip": "Show host's screen"
+    "show_host_screen_tooltip": "Show host's screen",
+    "chat_muted_placeholder": "The host has restricted your chat.",
+    "mod_mute_tooltip": "Restrict this viewer's chat",
+    "mod_unmute_tooltip": "Allow this viewer's chat again",
+    "mod_kick_tooltip": "Kick from the room"
   },
   "chat": {
     "autocomplete_code_hint": "Quotes a line from an open file",
@@ -68,7 +73,9 @@
     "invalid_ref_line_out_of_range": "{filename} L{line} (the file has {total} lines)",
     "invalid_references_toast": "Invalid reference: {refs}. Message not sent.",
     "chip_file_not_found": "{filename}: file not found",
-    "chip_line_not_found": "{filename} L{line}: line doesn't exist"
+    "chip_line_not_found": "{filename} L{line}: line doesn't exist",
+    "chip_goto_tooltip": "Go to this line",
+    "goto_unavailable": "Couldn't go to {filename} L{line}: the file was closed or the line no longer exists."
   },
   "file_sync": {
     "diff_apply_failed": "Couldn't apply the code update (library didn't load).",
@@ -94,6 +101,54 @@
     "reconnect_failed_reload": "Couldn't reconnect. Please reload the page.",
     "host_disconnected_grace_countdown": "The host lost connection. If they don't come back in {remaining}s, the room will close.",
     "host_disconnected_grace_waiting": "The host lost connection. Waiting for them to come back...",
-    "video_connection_unstable": "Video connection unstable. Trying to recover..."
+    "video_connection_unstable": "Video connection unstable. Trying to recover...",
+    "kicked_from_room": "The host kicked you from the room.",
+    "chat_muted": "The host has restricted your chat: you can't send messages.",
+    "chat_muted_by_host": "The host has restricted your chat. You can still copy and download the code.",
+    "chat_unmuted_by_host": "The host has allowed your chat again.",
+    "chat_restricted_on_join": "Your chat is restricted by the host. You can still copy and download the code."
+  },
+  "howto": {
+    "title": "How to use RoomsCode",
+    "intro": "RoomsCode is a platform for live programming classes and presentations. The Host shares their screen and the code open in VS Code; viewers follow everything in real time and chat — without being able to edit anything.",
+    "tab_host": "I'm the Host",
+    "tab_spectator": "I'm a Viewer",
+    "close_button": "Close",
+    "host_t1_title": "Create the room",
+    "host_t1_text": "On the home screen, click <strong>Host</strong>, enter your name and click <strong>Create room</strong>. You get a 6-character code, shown in the top bar (click it to copy).",
+    "host_t1_1_title": "Invite your class",
+    "host_t1_1_text": "Give the code to your viewers, or use the share button next to it to copy an invite link: anyone who opens the link arrives with the code already filled in.",
+    "host_t2_title": "Inside the room",
+    "host_t2_text": "Once the room is created, you can share your screen, your VS Code code or both, and keep track of who is watching.",
+    "host_t2_1_title": "Share your screen",
+    "host_t2_1_text": "Click <strong>Share screen</strong> and choose what to show. To finish, click <strong>Stop sharing</strong>.",
+    "host_t2_2_title": "Share your code (connect VS Code)",
+    "host_t2_2_text": "Install the extension (<strong>Download extension</strong> button on the home screen). In VS Code, click <strong>RoomsCode</strong> in the status bar and paste the code copied with <strong>Copy extension code</strong> — never share that code with viewers. Your open tabs then appear for the class, with your cursor's line highlighted.",
+    "host_t2_3_title": "Manage your viewers",
+    "host_t2_3_text": "Click a viewer's name to open the menu. The <strong>chat bubble</strong> restricts their chat (click again to allow it): they can no longer send messages, mentions or line quotes, but can still copy and download the code. The <strong>kick</strong> removes them from the room; a viewer who is kicked can come back, but with their chat already restricted.",
+    "host_t3_title": "Other features",
+    "host_t3_text": "Tools that help you talk with the class during the lesson.",
+    "host_t3_1_title": "Chat and code quotes",
+    "host_t3_1_text": "In the chat, <code>@name</code> or <code>!user(name)</code> mentions someone, and <code>!code(line, file)</code> quotes a line. Clicking a quote takes the person straight to that line of the file.",
+    "spectator_t1_title": "Join the room",
+    "spectator_t1_text": "To watch, you need the room code, which the Host gives to the class.",
+    "spectator_t1_1_title": "With the code",
+    "spectator_t1_1_text": "On the home screen, click <strong>Viewer</strong>, enter your name and the room code.",
+    "spectator_t1_2_title": "With the invite link",
+    "spectator_t1_2_text": "If the Host sent you a link, just open it: the code is already filled in and you only enter your name.",
+    "spectator_t2_title": "Inside the room",
+    "spectator_t2_text": "You follow the Host's screen and code in real time, and can move around them freely without bothering anyone.",
+    "spectator_t2_1_title": "Follow the screen",
+    "spectator_t2_1_text": "The Host's screen appears on the left. With the mouse over it, use <strong>Fullscreen</strong> or <strong>Hide screen</strong> (to see only the code). Drag the divider between the panels to resize them.",
+    "spectator_t2_2_title": "Browse the code",
+    "spectator_t2_2_text": "Each tab is a file the Host has open; click to switch. The line the Host is on is highlighted, and <strong>Follow the Host</strong> follows their tab and line automatically. Scroll the code freely and use the header buttons to copy or download the current file.",
+    "spectator_t3_title": "Other features",
+    "spectator_t3_text": "Tools to take part in the lesson and deal with the unexpected.",
+    "spectator_t3_1_title": "Chat and code quotes",
+    "spectator_t3_1_text": "In the chat, <code>@name</code> or <code>!user(name)</code> mentions someone. To quote a line, use <code>!code(line, file)</code> or select a piece of code and click <strong>Quote line</strong>. Click a quote in the chat to jump straight to that line.",
+    "spectator_t3_2_title": "If the Host restricts your chat",
+    "spectator_t3_2_text": "You can still see everything and copy and download the code, but you can't send messages, mentions or quotes until the Host allows it again.",
+    "spectator_t3_3_title": "If the connection drops",
+    "spectator_t3_3_text": "The site tries to reconnect on its own. If it's the Host who drops, you see a waiting notice and the room only closes if they don't come back in time."
   }
 }

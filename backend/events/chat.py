@@ -37,6 +37,13 @@ def register_chat_events(socketio):
         else:
             return
 
+        # Espectador com o chat restrito pelo Host: nada é enviado (isso
+        # cobre também menções e citações de código, que são só texto da
+        # mensagem). Fica antes do rate limit pra não gastar o limite dele.
+        if request.sid != room.host_sid and room_manager.is_chat_muted(room, request.sid):
+            emit("chat_rate_limited", {"code": "CHAT_MUTED"})
+            return
+
         # Eventos de erro/aviso mandam um "code" (mapeado 1:1 pra chave
         # socket.<code em minúsculo> nos arquivos de tradução), nunca texto
         # pronto — quem decide o idioma de exibição é o cliente que recebeu

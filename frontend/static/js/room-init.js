@@ -16,6 +16,7 @@
         isHost: document.body.dataset.roomRole === 'host',
         name: '',
         hostSid: null,
+        chatMuted: false,
     };
 
     // ---- Persistência de sessão (sessionStorage) pra sobreviver a quedas
@@ -58,6 +59,37 @@
     }
     function clearSpectatorSession() {
         try { sessionStorage.removeItem(SPECTATOR_SESSION_KEY); } catch (e) { /* ignora */ }
+    }
+
+    // Id anônimo deste navegador, mandado ao entrar como Espectador. Serve só
+    // pro backend reconhecer quem volta depois de uma expulsão/restrição de
+    // chat (ver RoomManager.add_spectator) — fica no localStorage pra valer
+    // também em outra aba, e nunca é exibido nem repassado a outros usuários.
+    const CLIENT_ID_KEY = 'roomscode_client_id';
+    const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+    let memoryClientId = null;
+
+    function generateClientId() {
+        const c = window.crypto;
+        if (c && c.randomUUID) return c.randomUUID();
+        if (c && c.getRandomValues) {
+            return Array.from(c.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+        }
+        return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+    }
+
+    function getClientId() {
+        try {
+            const stored = localStorage.getItem(CLIENT_ID_KEY);
+            if (stored && CLIENT_ID_PATTERN.test(stored)) return stored;
+            const fresh = generateClientId();
+            localStorage.setItem(CLIENT_ID_KEY, fresh);
+            return fresh;
+        } catch (e) {
+            // localStorage indisponível: o id vale só enquanto esta página estiver aberta.
+            if (!memoryClientId) memoryClientId = generateClientId();
+            return memoryClientId;
+        }
     }
 
     // true depois que o painel (chat, WebRTC) já foi inicializado uma vez
@@ -311,7 +343,7 @@
                 errorEl.textContent = window.t('room.room_code_required_error');
                 return;
             }
-            socket.emit('spectator_join_room', { room_code: code, name });
+            socket.emit('spectator_join_room', { room_code: code, name, client_id: getClientId() });
         }
     });
 
@@ -372,6 +404,7 @@
         hostDisplayName = data.host_name || hostDisplayName;
         updateParticipantNames();
         updateSpectatorList(data.spectators || []);
+        updateSpectatorRoster(data.roster || []);
         window.setExtensionConnected(!!data.extension_connected);
 
         // Sempre seguro chamar de novo (só recalcula o painel a partir do
@@ -459,6 +492,13 @@
         modal.style.display = 'none';
         updateSpectatorList(data.spectators);
 
+        // Quem volta depois de ser expulso (ou restrito) já entra com o chat restrito.
+        const wasMuted = roomState.chatMuted;
+        setChatMuted(!!data.chat_muted);
+        if (roomState.chatMuted && !wasMuted && window.showToast) {
+            window.showToast(window.t('socket.chat_restricted_on_join'), 'error');
+        }
+
         hostDisplayName = data.host_name || null;
         updateParticipantNames();
         showSpectatorRoomCode();
@@ -497,7 +537,7 @@
             const stored = loadSpectatorSession();
             if (stored && stored.code && stored.name) {
                 roomState.name = stored.name;
-                socket.emit('spectator_join_room', { room_code: stored.code, name: stored.name });
+                socket.emit('spectator_join_room', { room_code: stored.code, name: stored.name, client_id: getClientId() });
             }
         }
     });
@@ -527,6 +567,46 @@
         if (roomState.isHost && window.onSpectatorLeft) {
             window.onSpectatorLeft(data.sid);
         }
+    });
+
+    // ---- Moderação (ações do Host sobre um espectador) ----
+
+    // Só o Host recebe: lista de espectadores com sid e estado do chat.
+    socket.on('spectator_roster', (data) => {
+        if (roomState.isHost) updateSpectatorRoster((data && data.spectators) || []);
+    });
+
+    // Espectador: o Host restringiu ou liberou o chat dele.
+    socket.on('chat_muted_changed', (data) => {
+        if (roomState.isHost) return;
+        const muted = !!(data && data.muted);
+        const changed = muted !== roomState.chatMuted;
+        setChatMuted(muted);
+        if (changed && window.showToast) {
+            window.showToast(
+                window.t(muted ? 'socket.chat_muted_by_host' : 'socket.chat_unmuted_by_host'),
+                muted ? 'error' : 'success'
+            );
+        }
+    });
+
+    // Espectador: o Host expulsou da sala. Ele pode voltar quando quiser (já
+    // com o chat restrito), então só limpa a sessão guardada — senão a
+    // reconexão automática o colocaria de volta na sala na mesma hora.
+    socket.on('kicked', (data) => {
+        if (roomState.isHost) return;
+        hideReconnectBanner();
+        clearSpectatorSession();
+        clearHostSession();
+        const video = document.getElementById('video-display');
+        if (video) video.srcObject = null;
+        if (window.showToast) {
+            window.showToast(window.t('socket.' + String((data && data.code) || 'KICKED_FROM_ROOM').toLowerCase()), 'error');
+        }
+        socket.disconnect();
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1800);
     });
 
     socket.on('host_left', (data) => {
@@ -688,6 +768,7 @@
 
     let hostDisplayName = null;
     let currentSpectatorNames = [];
+    let currentRoster = []; // só no Host: [{ sid, name, muted }]
 
     function updateParticipantNames() {
         // não-op — só existe pra deixar explícito o ponto de atualização;
@@ -702,17 +783,168 @@
         return names;
     };
 
-    function updateSpectatorList(spectators) {
-        currentSpectatorNames = spectators;
+    function updateSpectatorsHeading(count) {
+        document.getElementById('spectators-heading').textContent = window.t('room.spectators_heading', { count });
+    }
+
+    function renderSpectatorList(entries) {
         const list = document.getElementById('spectator-list');
         list.innerHTML = '';
-        spectators.forEach((name) => {
+        entries.forEach((entry) => {
             const li = document.createElement('li');
-            li.textContent = name;
+            li.textContent = entry.name;
+            // Só o Host clica num espectador (abre o menu de moderação); pra
+            // isso a entrada precisa do sid, que só vem no roster do Host.
+            if (roomState.isHost && entry.sid) {
+                li.dataset.sid = entry.sid;
+                li.className = 'spectator-item-clickable';
+                li.tabIndex = 0;
+                li.setAttribute('role', 'button');
+                li.addEventListener('click', () => toggleSpectatorMenu(entry.sid, li));
+                li.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleSpectatorMenu(entry.sid, li);
+                    }
+                });
+            }
             list.appendChild(li);
         });
-        document.getElementById('spectators-heading').textContent = window.t('room.spectators_heading', { count: spectators.length });
+        updateSpectatorsHeading(entries.length);
+        refreshSpectatorMenu();
     }
+
+    function updateSpectatorList(spectators) {
+        currentSpectatorNames = spectators;
+        if (roomState.isHost) {
+            // A lista do Host vem do roster (com sid) — redesenhar só com
+            // nomes aqui apagaria os cliques por um instante. Só o contador muda.
+            updateSpectatorsHeading(spectators.length);
+            return;
+        }
+        renderSpectatorList(spectators.map((name) => ({ name })));
+    }
+
+    function updateSpectatorRoster(roster) {
+        currentRoster = roster;
+        currentSpectatorNames = roster.map((entry) => entry.name);
+        renderSpectatorList(roster);
+    }
+
+    // ---- Host: menu do espectador selecionado (balão = restringir/liberar
+    // chat, chute = expulsar) ----
+    const spectatorMenu = document.getElementById('spectator-menu');
+    const menuMuteBtn = document.getElementById('spectator-menu-mute-btn');
+    const menuKickBtn = document.getElementById('spectator-menu-kick-btn');
+    let menuSid = null;
+
+    function findSpectatorItem(sid) {
+        return Array.from(document.querySelectorAll('#spectator-list li')).find((li) => li.dataset.sid === sid) || null;
+    }
+
+    function closeSpectatorMenu() {
+        if (!spectatorMenu) return;
+        spectatorMenu.hidden = true;
+        menuSid = null;
+        document.querySelectorAll('#spectator-list li.spectator-item-selected').forEach((li) => {
+            li.classList.remove('spectator-item-selected');
+        });
+    }
+
+    function positionSpectatorMenu(anchor) {
+        spectatorMenu.hidden = false; // precisa estar visível pra medir
+        const rect = anchor.getBoundingClientRect();
+        const width = spectatorMenu.offsetWidth;
+        const height = spectatorMenu.offsetHeight;
+        const margin = 6;
+        const left = Math.min(Math.max(rect.left + rect.width / 2 - width / 2, margin), window.innerWidth - width - margin);
+        // Logo abaixo do nome (não cobre o título do painel); em cima só se não couber.
+        const fitsBelow = rect.bottom + 8 + height <= window.innerHeight - margin;
+        const top = fitsBelow ? rect.bottom + 8 : Math.max(margin, rect.top - height - 8);
+        spectatorMenu.style.left = `${left}px`;
+        spectatorMenu.style.top = `${top}px`;
+    }
+
+    // Chamado a cada redesenho da lista: mantém o menu aberto no mesmo
+    // espectador (e com o estado atualizado) ou fecha se ele saiu da sala.
+    function refreshSpectatorMenu() {
+        if (!spectatorMenu || !menuSid) return;
+        const entry = currentRoster.find((item) => item.sid === menuSid);
+        const li = findSpectatorItem(menuSid);
+        if (!entry || !li) {
+            closeSpectatorMenu();
+            return;
+        }
+        li.classList.add('spectator-item-selected');
+        const label = window.t(entry.muted ? 'room.mod_unmute_tooltip' : 'room.mod_mute_tooltip');
+        menuMuteBtn.classList.toggle('is-muted', !!entry.muted);
+        menuMuteBtn.setAttribute('aria-pressed', entry.muted ? 'true' : 'false');
+        menuMuteBtn.title = label;
+        menuMuteBtn.setAttribute('aria-label', label);
+        positionSpectatorMenu(li);
+    }
+
+    function toggleSpectatorMenu(sid, li) {
+        if (!spectatorMenu) return;
+        if (menuSid === sid) {
+            closeSpectatorMenu();
+            return;
+        }
+        document.querySelectorAll('#spectator-list li.spectator-item-selected').forEach((item) => {
+            item.classList.remove('spectator-item-selected');
+        });
+        menuSid = sid;
+        refreshSpectatorMenu();
+    }
+
+    if (spectatorMenu) {
+        const kickLabel = window.t('room.mod_kick_tooltip');
+        menuKickBtn.title = kickLabel;
+        menuKickBtn.setAttribute('aria-label', kickLabel);
+
+        menuMuteBtn.addEventListener('click', () => {
+            const entry = currentRoster.find((item) => item.sid === menuSid);
+            if (!entry || !roomState.code) return;
+            // O ícone só muda quando o servidor confirma (chega um novo roster).
+            socket.emit('host_set_chat_muted', { room_code: roomState.code, sid: entry.sid, muted: !entry.muted });
+        });
+
+        menuKickBtn.addEventListener('click', () => {
+            if (!menuSid || !roomState.code) return;
+            socket.emit('host_kick_spectator', { room_code: roomState.code, sid: menuSid });
+            closeSpectatorMenu();
+        });
+
+        document.addEventListener('mousedown', (event) => {
+            if (!menuSid || spectatorMenu.contains(event.target)) return;
+            // Clicar em outro nome da lista troca o alvo (tratado no click do próprio item).
+            if (event.target.closest && event.target.closest('#spectator-list li[data-sid]')) return;
+            closeSpectatorMenu();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && menuSid) closeSpectatorMenu();
+        });
+        window.addEventListener('resize', closeSpectatorMenu);
+        const spectatorsPanel = document.querySelector('.spectators-panel');
+        if (spectatorsPanel) spectatorsPanel.addEventListener('scroll', closeSpectatorMenu);
+    }
+
+    // ---- Espectador: chat restrito pelo Host. O servidor é quem barra as
+    // mensagens (ver chat.py); isto só deixa a interface coerente. Copiar e
+    // baixar o código continuam liberados. ----
+    function setChatMuted(muted) {
+        roomState.chatMuted = muted;
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('chat-input');
+        const sendBtn = form ? form.querySelector('button[type="submit"]') : null;
+        if (!form || !input) return;
+        form.classList.toggle('chat-muted', muted);
+        input.disabled = muted;
+        if (sendBtn) sendBtn.disabled = muted;
+        input.placeholder = window.t(muted ? 'room.chat_muted_placeholder' : 'room.chat_input_placeholder');
+        if (muted) input.value = '';
+    }
+    window.isChatMuted = () => roomState.chatMuted;
 
     initFileSync(socket);
 })();

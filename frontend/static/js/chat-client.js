@@ -91,17 +91,45 @@ function initChat(socket, roomState) {
                 const lines = (window.getFileLinesForFilename && window.getFileLinesForFilename(match.filename)) || null;
 
                 let label;
+                let resolved = false;
                 if (!lines) {
                     label = window.t('chat.chip_file_not_found', { filename: match.filename });
                 } else if (match.lineNumber < 1 || match.lineNumber > lines.length) {
                     label = window.t('chat.chip_line_not_found', { filename: match.filename, line: match.lineNumber });
                 } else {
                     label = `${match.filename} L${match.lineNumber}: ${lines[match.lineNumber - 1].trim()}`;
+                    resolved = true;
                 }
 
                 const chip = document.createElement('span');
                 chip.className = 'chat-quote';
                 chip.textContent = label;
+
+                // Citação válida: clicar leva direto à linha, no arquivo citado
+                // (troca de aba se preciso). Só é conferida de novo no clique,
+                // porque o Host pode ter fechado o arquivo ou mudado o código.
+                if (resolved) {
+                    const goToLine = () => {
+                        if (!window.goToCodeLine) return;
+                        if (!window.goToCodeLine(match.filename, match.lineNumber) && window.showToast) {
+                            window.showToast(
+                                window.t('chat.goto_unavailable', { filename: match.filename, line: match.lineNumber }),
+                                'error'
+                            );
+                        }
+                    };
+                    chip.classList.add('chat-quote-clickable');
+                    chip.tabIndex = 0;
+                    chip.setAttribute('role', 'button');
+                    chip.title = window.t('chat.chip_goto_tooltip');
+                    chip.addEventListener('click', goToLine);
+                    chip.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            goToLine();
+                        }
+                    });
+                }
                 container.appendChild(chip);
             } else if (match.type === 'mention') {
                 const isSelf = !!(roomState.name && match.name.toLowerCase() === roomState.name.toLowerCase());
@@ -144,6 +172,12 @@ function initChat(socket, roomState) {
         event.preventDefault();
         const message = input.value.trim();
         if (!message || !roomState.code) return;
+
+        // Chat restrito pelo Host (o servidor também barra — ver chat.py).
+        if (roomState.chatMuted) {
+            if (window.showToast) window.showToast(window.t('socket.chat_muted'), 'error');
+            return;
+        }
 
         // Valida ANTES de enviar: se alguma citação referenciar um arquivo
         // desconhecido ou uma linha que não existe, bloqueia o envio,

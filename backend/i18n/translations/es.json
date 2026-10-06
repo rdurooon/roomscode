@@ -3,7 +3,8 @@
     "subtitle": "Clases y presentaciones de programación en vivo.",
     "host_button": "Host",
     "spectator_button": "Espectador",
-    "download_extension_trigger": "Descargar extensión"
+    "download_extension_trigger": "Descargar extensión",
+    "how_to_use_link": "Cómo usar"
   },
   "room": {
     "title_host": "RoomsCode — Host",
@@ -57,7 +58,11 @@
     "fullscreen_tooltip": "Pantalla completa",
     "hide_screen_tooltip": "Ocultar pantalla",
     "exit_fullscreen_button": "Salir de pantalla completa",
-    "show_host_screen_tooltip": "Mostrar pantalla del host"
+    "show_host_screen_tooltip": "Mostrar pantalla del host",
+    "chat_muted_placeholder": "El host restringió tu chat.",
+    "mod_mute_tooltip": "Restringir el chat de este espectador",
+    "mod_unmute_tooltip": "Volver a permitir el chat de este espectador",
+    "mod_kick_tooltip": "Expulsar de la sala"
   },
   "chat": {
     "autocomplete_code_hint": "Cita una línea de un archivo abierto",
@@ -68,7 +73,9 @@
     "invalid_ref_line_out_of_range": "{filename} L{line} (el archivo tiene {total} líneas)",
     "invalid_references_toast": "Referencia inválida: {refs}. Mensaje no enviado.",
     "chip_file_not_found": "{filename}: archivo no encontrado",
-    "chip_line_not_found": "{filename} L{line}: línea inexistente"
+    "chip_line_not_found": "{filename} L{line}: línea inexistente",
+    "chip_goto_tooltip": "Ir a esta línea",
+    "goto_unavailable": "No se pudo ir a {filename} L{line}: el archivo se cerró o la línea ya no existe."
   },
   "file_sync": {
     "diff_apply_failed": "No se pudo aplicar la actualización de código (la librería no cargó).",
@@ -94,6 +101,54 @@
     "reconnect_failed_reload": "No se pudo restablecer la conexión. Recarga la página.",
     "host_disconnected_grace_countdown": "El host perdió la conexión. Si no vuelve en {remaining}s, la sala se cerrará.",
     "host_disconnected_grace_waiting": "El host perdió la conexión. Esperando a que vuelva...",
-    "video_connection_unstable": "Conexión de video inestable. Intentando recuperar..."
+    "video_connection_unstable": "Conexión de video inestable. Intentando recuperar...",
+    "kicked_from_room": "El host te expulsó de la sala.",
+    "chat_muted": "El host restringió tu chat: no puedes enviar mensajes.",
+    "chat_muted_by_host": "El host restringió tu chat. Todavía puedes copiar y descargar el código.",
+    "chat_unmuted_by_host": "El host volvió a permitir tu chat.",
+    "chat_restricted_on_join": "Tu chat está restringido por el host. Todavía puedes copiar y descargar el código."
+  },
+  "howto": {
+    "title": "Cómo usar RoomsCode",
+    "intro": "RoomsCode es una plataforma para clases y presentaciones de programación en vivo. El Host comparte su pantalla y el código abierto en VS Code; los espectadores siguen todo en tiempo real y conversan por el chat, sin poder editar nada.",
+    "tab_host": "Soy Host",
+    "tab_spectator": "Soy Espectador",
+    "close_button": "Cerrar",
+    "host_t1_title": "Crear la sala",
+    "host_t1_text": "En la pantalla de inicio, haz clic en <strong>Host</strong>, escribe tu nombre y haz clic en <strong>Crear sala</strong>. Recibes un código de 6 caracteres, que aparece en la barra superior (haz clic para copiarlo).",
+    "host_t1_1_title": "Invitar a la clase",
+    "host_t1_1_text": "Pasa el código a los espectadores o usa el botón de compartir, junto a él, para copiar un enlace de invitación: quien abra el enlace llega con el código ya completado.",
+    "host_t2_title": "Dentro de la sala",
+    "host_t2_text": "Con la sala creada, puedes compartir la pantalla, el código de VS Code o ambos, y ver quién está mirando.",
+    "host_t2_1_title": "Compartir la pantalla",
+    "host_t2_1_text": "Haz clic en <strong>Compartir pantalla</strong> y elige qué mostrar. Para terminar, haz clic en <strong>Detener el uso compartido</strong>.",
+    "host_t2_2_title": "Compartir el código (conectar VS Code)",
+    "host_t2_2_text": "Instala la extensión (botón <strong>Descargar extensión</strong> de la pantalla de inicio). En VS Code, haz clic en <strong>RoomsCode</strong> en la barra de estado y pega el código copiado con <strong>Copiar código de la extensión</strong>; nunca compartas ese código con los espectadores. Tus pestañas abiertas pasan a verse en la clase, con la línea de tu cursor resaltada.",
+    "host_t2_3_title": "Gestionar a los espectadores",
+    "host_t2_3_text": "Haz clic en el nombre de un espectador para abrir el menú. El <strong>globo de chat</strong> restringe su chat (haz clic otra vez para permitirlo): deja de enviar mensajes, menciones y citas de línea, pero todavía puede copiar y descargar el código. La <strong>patada</strong> lo expulsa de la sala; quien es expulsado puede volver, pero con el chat ya restringido.",
+    "host_t3_title": "Otros recursos",
+    "host_t3_text": "Herramientas que ayudan a conversar con la clase durante la lección.",
+    "host_t3_1_title": "Chat y citas de código",
+    "host_t3_1_text": "En el chat, <code>@nombre</code> o <code>!user(nombre)</code> menciona a alguien, y <code>!code(línea, archivo)</code> cita una línea. Al hacer clic en una cita, la persona va directo a esa línea del archivo.",
+    "spectator_t1_title": "Entrar a la sala",
+    "spectator_t1_text": "Para mirar, necesitas el código de la sala, que el Host le pasa a la clase.",
+    "spectator_t1_1_title": "Con el código",
+    "spectator_t1_1_text": "En la pantalla de inicio, haz clic en <strong>Espectador</strong>, escribe tu nombre y el código de la sala.",
+    "spectator_t1_2_title": "Con el enlace de invitación",
+    "spectator_t1_2_text": "Si el Host te envió un enlace, solo ábrelo: el código ya viene completado y solo escribes tu nombre.",
+    "spectator_t2_title": "Dentro de la sala",
+    "spectator_t2_text": "Sigues la pantalla y el código del Host en tiempo real, y puedes moverte por ellos con libertad sin molestar a nadie.",
+    "spectator_t2_1_title": "Seguir la pantalla",
+    "spectator_t2_1_text": "La pantalla del Host aparece a la izquierda. Con el mouse encima, usa <strong>Pantalla completa</strong> u <strong>Ocultar pantalla</strong> (para ver solo el código). Arrastra el divisor entre los paneles para cambiar su tamaño.",
+    "spectator_t2_2_title": "Recorrer el código",
+    "spectator_t2_2_text": "Cada pestaña es un archivo abierto por el Host; haz clic para cambiar. La línea donde está el Host aparece resaltada, y <strong>Seguir al Host</strong> acompaña su pestaña y su línea automáticamente. Desplázate por el código con libertad y usa los botones del encabezado para copiar o descargar el archivo actual.",
+    "spectator_t3_title": "Otros recursos",
+    "spectator_t3_text": "Herramientas para participar en la lección y manejar imprevistos.",
+    "spectator_t3_1_title": "Chat y citas de código",
+    "spectator_t3_1_text": "En el chat, <code>@nombre</code> o <code>!user(nombre)</code> menciona a alguien. Para citar una línea, usa <code>!code(línea, archivo)</code> o selecciona un fragmento del código y haz clic en <strong>Citar línea</strong>. Haz clic en una cita del chat para ir directo a esa línea.",
+    "spectator_t3_2_title": "Si el Host restringe tu chat",
+    "spectator_t3_2_text": "Sigues viéndolo todo y puedes copiar y descargar el código, pero no puedes enviar mensajes, menciones ni citas hasta que el Host lo permita de nuevo.",
+    "spectator_t3_3_title": "Si se cae la conexión",
+    "spectator_t3_3_text": "El sitio intenta reconectarse solo. Si quien se cae es el Host, ves un aviso de espera y la sala solo se cierra si no vuelve a tiempo."
   }
 }

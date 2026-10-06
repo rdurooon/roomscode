@@ -47,9 +47,16 @@
         </div>
     </div>
 
+    <footer class="home-footer">
+        <button type="button" class="home-footer-link" id="howto-open-btn" data-i18n="home.how_to_use_link">{{ t('home.how_to_use_link') }}</button>
+    </footer>
+
+    {% include 'partials/howto_modal.html' %}
+
     <script id="i18n-data" type="application/json">{{ i18n_json | safe }}</script>
     <script id="i18n-all-data" type="application/json">{{ i18n_all_json | safe }}</script>
     <script src="{{ url_for('static', filename='js/i18n-client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/language-switcher.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/howto-modal.js') }}"></script>
 </body>
 </html>

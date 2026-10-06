@@ -1,9 +1,16 @@
+import re
+
 from flask import current_app, request
 from flask_socketio import emit, join_room
 
 from ..net import get_client_ip
 from ..rooms.manager import room_manager
 from .rate_limit import SlidingWindowRateLimiter
+from .roster import emit_roster_to_host
+
+# Id anônimo gerado pelo navegador do espectador (ver room-init.js) — serve só
+# pra reconhecê-lo se voltar à sala depois de expulso/restrito.
+_CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
 _room_create_rate_limiter = SlidingWindowRateLimiter()
 _spectator_join_rate_limiter = SlidingWindowRateLimiter()
@@ -100,6 +107,7 @@ def register_presence_events(socketio):
                 ],
                 "host_cursor": room.host_cursor,
                 "spectators": list(room.spectators.values()),
+                "roster": room_manager.get_roster(room),
             },
         )
         emit(
@@ -122,8 +130,11 @@ def register_presence_events(socketio):
         data = data or {}
         code = data.get("room_code", "")
         name = data.get("name", "Espectador")
+        client_id = data.get("client_id", "")
+        if not isinstance(client_id, str) or not _CLIENT_ID_PATTERN.match(client_id):
+            client_id = ""
 
-        room = room_manager.add_spectator(code, sid=request.sid, name=name)
+        room = room_manager.add_spectator(code, sid=request.sid, name=name, client_id=client_id)
         if room is None:
             emit("join_error", {"code": "ROOM_NOT_FOUND"})
             return
@@ -146,6 +157,7 @@ def register_presence_events(socketio):
                 ],
                 "host_cursor": room.host_cursor,
                 "spectators": list(room.spectators.values()),
+                "chat_muted": room_manager.is_chat_muted(room, request.sid),
             },
         )
 
@@ -155,6 +167,7 @@ def register_presence_events(socketio):
             room=room.code,
             include_self=False,
         )
+        emit_roster_to_host(room)
 
     @socketio.on("extension_attach")
     def handle_extension_attach(data):
@@ -265,3 +278,4 @@ def register_presence_events(socketio):
             {"sid": sid, "spectators": list(room.spectators.values())},
             room=room.code,
         )
+        emit_roster_to_host(room)

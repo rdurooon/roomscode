@@ -176,6 +176,21 @@
         </div>
     </main>
 
+    {% if role == 'host' %}
+    <!-- Menu do espectador selecionado (só no Host): aberto ao clicar num nome
+         da lista (ver initSpectatorMenu em room-init.js). Os dois botões só
+         ganham título/estado via JS, porque o texto do balão alterna entre
+         "restringir" e "liberar" conforme o estado atual do espectador. -->
+    <div class="spectator-menu" id="spectator-menu" role="menu" hidden>
+        <button type="button" class="spectator-menu-btn" id="spectator-menu-mute-btn" role="menuitem">
+            {% include 'partials/chat_bubble_icon.svg' %}
+        </button>
+        <button type="button" class="spectator-menu-btn spectator-menu-btn-kick" id="spectator-menu-kick-btn" role="menuitem">
+            {% include 'partials/kick_icon.svg' %}
+        </button>
+    </div>
+    {% endif %}
+
     <div class="modal-overlay" id="join-modal">
         <div class="modal-card">
             <h2>{{ t('room.join_modal_title_host') if role == 'host' else t('room.join_modal_title_spectator') }}</h2>

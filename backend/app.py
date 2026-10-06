@@ -10,6 +10,7 @@ from .config import Config
 from .events.chat import register_chat_events
 from .events.cursor import register_cursor_events
 from .events.file_sync import register_file_sync_events
+from .events.moderation import register_moderation_events
 from .events.connection_quality import register_connection_quality_events
 from .events.presence import register_presence_events
 from .events.signaling import register_signaling_events
@@ -165,6 +166,7 @@ def create_app():
     register_file_sync_events(socketio)
     register_cursor_events(socketio)
     register_chat_events(socketio)
+    register_moderation_events(socketio)
     register_connection_quality_events(socketio)
 
     return app, socketio
