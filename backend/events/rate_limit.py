@@ -1,6 +1,6 @@
 """Rate limiting em janela deslizante para eventos Socket.IO.
 
-O Flask-Limiter (ver app.py) só cobre as rotas HTTP comuns. Eventos de
+O abuse_guard (ver app.py) só cobre as rotas HTTP comuns. Eventos de
 Socket.IO não passam por essas rotas, então cada evento que precisa de
 limite usa uma instância de `SlidingWindowRateLimiter` própria, chaveada
 pelo que fizer mais sentido para aquele evento (sid do socket, IP do

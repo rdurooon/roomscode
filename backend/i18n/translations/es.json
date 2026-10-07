@@ -150,5 +150,9 @@
     "spectator_t3_2_text": "Sigues viéndolo todo y puedes copiar y descargar el código, pero no puedes enviar mensajes, menciones ni citas hasta que el Host lo permita de nuevo.",
     "spectator_t3_3_title": "Si se cae la conexión",
     "spectator_t3_3_text": "El sitio intenta reconectarse solo. Si quien se cae es el Host, ves un aviso de espera y la sala solo se cierra si no vuelve a tiempo."
+  },
+  "errors": {
+    "rate_limited_title": "Demasiadas solicitudes",
+    "rate_limited_body": "Detectamos un volumen inusual de accesos desde tu dirección. Inténtalo de nuevo en {seconds} segundos."
   }
 }

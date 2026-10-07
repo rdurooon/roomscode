@@ -81,6 +81,21 @@ class Config:
     CURSOR_RATE_LIMIT_COUNT = 40
     CURSOR_RATE_LIMIT_WINDOW_SECONDS = 10
 
+    # ---- Proteção contra abuso HTTP (ver backend/abuse_guard.py) ----
+    # Por IP, em janela deslizante. Páginas e arquivos estáticos têm limites
+    # separados (uma página carrega dezenas de estáticos). Os padrões são
+    # folgados de propósito: uma turma inteira costuma sair do mesmo IP
+    # (NAT da escola/faculdade) e entra quase ao mesmo tempo.
+    ABUSE_PAGE_LIMIT_COUNT = int(os.environ.get("ABUSE_PAGE_LIMIT_COUNT", 120))
+    ABUSE_PAGE_LIMIT_WINDOW_SECONDS = int(os.environ.get("ABUSE_PAGE_LIMIT_WINDOW_SECONDS", 60))
+    ABUSE_ASSET_LIMIT_COUNT = int(os.environ.get("ABUSE_ASSET_LIMIT_COUNT", 1500))
+    ABUSE_ASSET_LIMIT_WINDOW_SECONDS = int(os.environ.get("ABUSE_ASSET_LIMIT_WINDOW_SECONDS", 60))
+    # Bloqueio temporário: começa em BASE e dobra a cada reincidência dentro
+    # de STRIKE_MEMORY, até MAX.
+    ABUSE_BLOCK_BASE_SECONDS = int(os.environ.get("ABUSE_BLOCK_BASE_SECONDS", 120))
+    ABUSE_BLOCK_MAX_SECONDS = int(os.environ.get("ABUSE_BLOCK_MAX_SECONDS", 1800))
+    ABUSE_STRIKE_MEMORY_SECONDS = int(os.environ.get("ABUSE_STRIKE_MEMORY_SECONDS", 3600))
+
     # ---- Robustez de conexão ----
     # Quanto tempo (em segundos) a sala fica em "estado de graça" depois que
     # o socket do Host cai, esperando ele voltar (reconexão automática do

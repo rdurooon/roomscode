@@ -150,5 +150,9 @@
     "spectator_t3_2_text": "You can still see everything and copy and download the code, but you can't send messages, mentions or quotes until the Host allows it again.",
     "spectator_t3_3_title": "If the connection drops",
     "spectator_t3_3_text": "The site tries to reconnect on its own. If it's the Host who drops, you see a waiting notice and the room only closes if they don't come back in time."
+  },
+  "errors": {
+    "rate_limited_title": "Too many requests",
+    "rate_limited_body": "We detected an unusual amount of traffic from your address. Please try again in {seconds} seconds."
   }
 }

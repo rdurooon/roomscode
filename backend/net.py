@@ -11,11 +11,10 @@ esse cabeçalho antes de repassar).
 """
 
 from flask import request
-from flask_limiter.util import get_remote_address
 
 
 def get_client_ip() -> str:
     forwarded = request.headers.get("CF-Connecting-IP")
     if forwarded:
         return forwarded.strip()
-    return get_remote_address()
+    return request.remote_addr or "127.0.0.1"

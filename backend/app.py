@@ -2,10 +2,10 @@ import json
 import os
 
 from flask import Flask, g, request
-from flask_limiter import Limiter
 from flask_socketio import SocketIO
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from .abuse_guard import register_abuse_guard
 from .config import Config
 from .events.chat import register_chat_events
 from .events.cursor import register_cursor_events
@@ -15,7 +15,6 @@ from .events.connection_quality import register_connection_quality_events
 from .events.presence import register_presence_events
 from .events.signaling import register_signaling_events
 from .i18n.locale import LOCALE_DISPLAY, get_all_translations, get_full_translations, resolve_locale, translate
-from .net import get_client_ip
 from .routes.health import health_bp
 from .routes.home import home_bp
 from .routes.host import host_bp
@@ -66,7 +65,7 @@ def create_app():
     # A aplicação roda atrás de exatamente 1 proxy reverso confiável (o
     # Cloudflare Tunnel, instalado no host, fora do container). O ProxyFix
     # corrige request.remote_addr / wsgi.url_scheme / Host a partir dos
-    # cabeçalhos X-Forwarded-* desse proxy, para que o Flask-Limiter e
+    # cabeçalhos X-Forwarded-* desse proxy, para que o abuse_guard e
     # qualquer log de IP enxerguem o visitante real, não o túnel.
     app.wsgi_app = ProxyFix(
         app.wsgi_app,
@@ -75,11 +74,11 @@ def create_app():
         x_host=Config.TRUSTED_PROXY_COUNT,
     )
 
-    # Protege as rotas HTTP comuns (ex: contra flood de acesso às páginas).
-    # O chat e os demais eventos de tempo real, que rodam via Socket.IO e
-    # não passam por essas rotas, têm seu próprio rate limit dedicado (ver
-    # events/chat.py e events/rate_limit.py).
-    Limiter(get_client_ip, app=app, default_limits=["60 per minute"])
+    # Protege as rotas HTTP contra flood (F5 em loop, scripts): limite por IP,
+    # bloqueio temporário leve e alerta no log (ver abuse_guard.py). O chat e
+    # os demais eventos de Socket.IO não passam por aqui e têm seu próprio
+    # rate limit (ver events/chat.py e events/rate_limit.py).
+    register_abuse_guard(app)
 
     @app.after_request
     def set_security_headers(response):
@@ -100,10 +99,13 @@ def create_app():
 
     @app.after_request
     def persist_locale_cookie(response):
-        if request.cookies.get(Config.LOCALE_COOKIE_NAME) != g.get("locale"):
+        # Respostas geradas antes do resolve_request_locale (ex.: 429 do
+        # abuse_guard) não têm g.locale — não há o que persistir nelas.
+        locale = g.get("locale")
+        if locale and request.cookies.get(Config.LOCALE_COOKIE_NAME) != locale:
             response.set_cookie(
                 Config.LOCALE_COOKIE_NAME,
-                g.locale,
+                locale,
                 max_age=Config.LOCALE_COOKIE_MAX_AGE_SECONDS,
                 samesite="Lax",
             )

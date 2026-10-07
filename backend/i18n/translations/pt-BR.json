@@ -150,5 +150,9 @@
     "spectator_t3_2_text": "Você continua vendo tudo e pode copiar e baixar o código, mas não envia mensagens, menções nem citações até o Host liberar.",
     "spectator_t3_3_title": "Se a conexão cair",
     "spectator_t3_3_text": "O site tenta reconectar sozinho. Se for o Host que cair, você vê um aviso de espera e a sala só se encerra se ele não voltar a tempo."
+  },
+  "errors": {
+    "rate_limited_title": "Muitas requisições",
+    "rate_limited_body": "Detectamos um volume incomum de acessos do seu endereço. Tente novamente em {seconds} segundos."
   }
 }
