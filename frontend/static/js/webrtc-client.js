@@ -1,35 +1,79 @@
 const RTC_CONFIG = {
-    // Só STUN público por enquanto (suficiente para o MVP, e é o que o
-    // usuário decidiu manter por ora). Pra adicionar um servidor TURN no
-    // futuro (necessário pra redes de instituição/NAT restritivo — ver
-    // aprendizado registrado sobre mesh WebRTC falhando nesse cenário),
-    // basta acrescentar outra entrada em `iceServers`, por exemplo:
-    //   { urls: 'turn:seu-turn-server:3478', username: '...', credential: '...' }
-    // Agora que o site está atrás de um domínio HTTPS de verdade, também dá
-    // pra usar `turns:` (TURN sobre TLS, porta 443) sem restrição de
-    // "mixed content" — útil em redes que bloqueiam qualquer UDP/porta não
-    // convencional.
+    // Só STUN público: suficiente para redes comuns. Redes de instituição/NAT restritivo
+    // exigiriam um TURN alcançável pela internet, que esta hospedagem (CGNAT + Cloudflare Tunnel) não tem.
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 };
 
-// Depois de quantas mudanças pro estado 'failed' seguidas (sem voltar a
-// 'connected' entre elas) desistimos de tentar ICE restart sozinhos e só
-// avisamos o usuário — evita um loop infinito de restarts numa rede que
-// simplesmente não tem mais caminho nenhum entre Host e Espectador (aí quem
-// resolve é reconectar de verdade, o que o room-init.js já cobre).
+// Tentativas de ICE restart do Host antes de desistir (a recuperação seguinte é o espectador pedir uma conexão nova).
 const MAX_ICE_RESTART_ATTEMPTS = 3;
 
+// Espectador: esperas e tentativas antes de mostrar "Não foi possível receber a tela do host."
+const OFFER_WAIT_MS = 4000; // sem oferta do Host nesse tempo, pede de novo
+const MAX_OFFER_ATTEMPTS = 3; // pedidos de oferta sem resposta antes de desistir
+const MEDIA_TIMEOUT_MS = 12000; // com oferta recebida, tempo até o primeiro quadro aparecer
+const DISCONNECTED_GRACE_MS = 8000; // 'disconnected' costuma ser passageiro; só desiste depois disso
+const MAX_AUTO_RETRIES = 2; // tentativas automáticas completas antes de pedir um clique do usuário
+const FRAME_POLL_MS = 500;
+
+function randomSessionId() {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 /**
- * Tenta recuperar uma RTCPeerConnection que degradou ('disconnected' ou
- * 'failed') via ICE restart, sem esperar o usuário fazer nada. Só quem
- * criou a oferta original (o Host, nas duas topologias que essa página
- * implementa) pode de fato reiniciar o ICE — o lado que só responde
- * (Espectador) apenas observa e avisa (ver oniceconnectionstatechange do
- * Espectador logo abaixo).
+ * Fila que aplica os sinais remotos em ordem e segura os candidatos ICE que chegam antes da
+ * descrição remota (addIceCandidate sem ela falha e o candidato se perde pra sempre).
+ */
+function createSignalQueue(pc) {
+    let chain = Promise.resolve();
+    let remoteDescriptionSet = false;
+    const pendingCandidates = [];
+
+    function enqueue(task, label) {
+        chain = chain.then(task).catch((err) => console.warn(`RoomsCode: falha ao aplicar ${label}.`, err));
+        return chain;
+    }
+
+    async function applyCandidate(candidate) {
+        try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+            // Candidato de uma geração ICE antiga ou duplicado: não derruba a conexão.
+            console.warn('RoomsCode: candidato ICE ignorado.', err);
+        }
+    }
+
+    return {
+        setRemoteDescription(description, afterApplied) {
+            return enqueue(async () => {
+                await pc.setRemoteDescription(new RTCSessionDescription(description));
+                remoteDescriptionSet = true;
+                while (pendingCandidates.length) {
+                    await applyCandidate(pendingCandidates.shift());
+                }
+                if (afterApplied) await afterApplied();
+            }, `descrição remota (${description.type})`);
+        },
+        addCandidate(candidate) {
+            return enqueue(async () => {
+                if (!remoteDescriptionSet) {
+                    pendingCandidates.push(candidate);
+                    return;
+                }
+                await applyCandidate(candidate);
+            }, 'candidato ICE');
+        },
+    };
+}
+
+/**
+ * Tenta recuperar uma RTCPeerConnection que degradou ('disconnected' ou 'failed') via ICE
+ * restart. Só quem criou a oferta (o Host) pode reiniciar o ICE.
  */
 function attemptIceRestart(pc, onOffer, attemptsRef, label) {
     if (attemptsRef.count >= MAX_ICE_RESTART_ATTEMPTS) {
-        console.warn(`RoomsCode: ICE restart esgotado para ${label} — aguardando reconexão completa.`);
+        console.warn(`RoomsCode: ICE restart esgotado para ${label}.`);
         return;
     }
     attemptsRef.count += 1;
@@ -37,14 +81,10 @@ function attemptIceRestart(pc, onOffer, attemptsRef, label) {
 
     try {
         if (typeof pc.restartIce === 'function') {
-            // API moderna: só marca a necessidade de restart; o próprio
-            // onnegotiationneeded (já registrado na criação da conexão)
-            // dispara a nova oferta com credenciais ICE renovadas.
+            // Só marca a necessidade; o onnegotiationneeded da conexão cria a nova oferta.
             pc.restartIce();
             return;
         }
-        // Fallback pra navegadores sem RTCPeerConnection.restartIce():
-        // cria a oferta de restart manualmente.
         pc.createOffer({ iceRestart: true })
             .then((offer) => pc.setLocalDescription(offer).then(() => offer))
             .then((offer) => onOffer(offer))
@@ -63,130 +103,164 @@ function setScreenPlaceholderVisible(visible) {
 
 // ---- Lado do Host ----
 //
-// Estado guardado fora da função (em vez de local a ela) de propósito:
-// initWebRTCHost precisa poder ser chamada de novo depois que o Host
-// reconecta (queda + F5, ver room-init.js/host_reconnect_success), e nesse
-// caso precisa primeiro desmontar tudo que a chamada anterior deixou de pé
-// — sem isso, sobrariam RTCPeerConnections zumbis e listeners duplicados no
-// socket, cada evento sendo processado duas vezes.
-let hostPeerConnections = {}; // spectatorSid -> RTCPeerConnection
+// Estado fora da função: initWebRTCHost roda de novo quando o Host reconecta e precisa desmontar
+// tudo que a chamada anterior deixou de pé (conexões zumbis, listeners duplicados no socket).
+let hostPeers = {}; // spectatorSid -> { pc, session, queue }
 let hostLocalStream = null;
-let hostWebrtcSignalHandler = null;
+let hostSignalHandler = null;
+let hostOfferRequestHandler = null;
 
-/**
- * Fecha e descarta a conexão de um espectador específico. Usada tanto na
- * limpeza geral no início de initWebRTCHost quanto isoladamente quando só
- * precisamos derrubar a conexão de UM espectador que saiu de verdade (ver
- * window.onSpectatorLeft).
- */
-function closeHostPeerConnection(spectatorSid) {
-    const pc = hostPeerConnections[spectatorSid];
-    if (!pc) return;
+function closeHostPeer(spectatorSid) {
+    const peer = hostPeers[spectatorSid];
+    if (!peer) return;
+    delete hostPeers[spectatorSid];
     try {
-        pc.close();
+        peer.pc.close();
     } catch (err) {
-        // Fechar uma conexão já degradada raramente lança, mas não é
-        // motivo pra interromper a limpeza do resto.
+        // Fechar uma conexão já degradada raramente lança; não interrompe o resto da limpeza.
     }
-    delete hostPeerConnections[spectatorSid];
+}
+
+function closeAllHostPeers() {
+    Object.keys(hostPeers).forEach(closeHostPeer);
 }
 
 /**
- * Lado do Host: cria uma conexão WebRTC por Espectador (topologia mesh).
- * Idempotente — pode ser chamada de novo a cada reconexão do Host, recriando as conexões existentes.
+ * Lado do Host: uma conexão WebRTC por Espectador (mesh), criada SOB PEDIDO do espectador
+ * (`video_offer_requested`), nunca por palpite do Host. Idempotente — pode ser chamada de
+ * novo a cada reconexão do Host.
  */
 function initWebRTCHost(socket, roomState) {
-    // Limpeza de uma chamada anterior (reconexão do Host).
-    Object.keys(hostPeerConnections).forEach(closeHostPeerConnection);
-    hostPeerConnections = {};
+    closeAllHostPeers();
     if (hostLocalStream) {
         hostLocalStream.getTracks().forEach((track) => track.stop());
         hostLocalStream = null;
     }
-    if (hostWebrtcSignalHandler) {
-        socket.off('webrtc_signal', hostWebrtcSignalHandler);
-        hostWebrtcSignalHandler = null;
+    if (hostSignalHandler) {
+        socket.off('webrtc_signal', hostSignalHandler);
+        hostSignalHandler = null;
     }
-
-    const peerConnections = hostPeerConnections;
+    if (hostOfferRequestHandler) {
+        socket.off('video_offer_requested', hostOfferRequestHandler);
+        hostOfferRequestHandler = null;
+    }
 
     let toggleBtn = document.getElementById('share-toggle-btn');
     const videoEl = document.getElementById('video-display');
+    let startingShare = false;
 
-    // O botão é clonado (descartando o nó antigo) pra garantir que nenhum
-    // listener de 'click' de uma chamada anterior desta função continue
-    // vivo — sem isso, depois de um reconnect do Host, cada clique em
-    // "compartilhar" chamaria startShare/stopShare uma vez a mais por
-    // reconexão que já aconteceu na página.
+    // O botão é clonado pra descartar listeners de chamadas anteriores desta função.
     if (toggleBtn) {
         const freshToggleBtn = toggleBtn.cloneNode(true);
         toggleBtn.replaceWith(freshToggleBtn);
         toggleBtn = freshToggleBtn;
     }
 
-    hostWebrtcSignalHandler = async (data) => {
-        const { sender_sid: senderSid, signal } = data;
-        const pc = peerConnections[senderSid];
-        if (!pc) return;
+    hostSignalHandler = (data) => {
+        const { sender_sid: senderSid, signal, session } = data || {};
+        const peer = hostPeers[senderSid];
+        // Sinal de uma tentativa que o espectador já abandonou: descarta.
+        if (!peer || peer.session !== session || !signal) return;
 
         if (signal.type === 'answer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(signal));
+            peer.queue.setRemoteDescription(signal);
         } else if (signal.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            peer.queue.addCandidate(signal.candidate);
         }
     };
-    socket.on('webrtc_signal', hostWebrtcSignalHandler);
+    socket.on('webrtc_signal', hostSignalHandler);
+
+    function startPeer(spectatorSid, session) {
+        // Pedido novo do mesmo espectador substitui a conexão anterior (retentativa ou F5).
+        closeHostPeer(spectatorSid);
+
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        const peer = { pc, session, queue: createSignalQueue(pc) };
+        hostPeers[spectatorSid] = peer;
+        const isCurrent = () => hostPeers[spectatorSid] === peer;
+        const iceRestartAttempts = { count: 0 };
+        const sendSignal = (signal) => socket.emit('webrtc_signal', { target_sid: spectatorSid, signal, session });
+
+        hostLocalStream.getTracks().forEach((track) => pc.addTrack(track, hostLocalStream));
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate && isCurrent()) sendSignal({ candidate: event.candidate });
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            if (!isCurrent()) return;
+            const state = pc.iceConnectionState;
+            if (state === 'connected' || state === 'completed') {
+                iceRestartAttempts.count = 0;
+                return;
+            }
+            if (state === 'disconnected' || state === 'failed') {
+                attemptIceRestart(pc, sendSignal, iceRestartAttempts, `espectador ${spectatorSid}`);
+            }
+        };
+
+        // Dispara ao adicionar a track (acima) e quando pc.restartIce() é chamado.
+        pc.onnegotiationneeded = async () => {
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                if (isCurrent()) sendSignal(offer);
+            } catch (err) {
+                console.error('RoomsCode: falha ao (re)negociar conexão com espectador.', err);
+            }
+        };
+    }
+
+    hostOfferRequestHandler = (data) => {
+        const { sid, session } = data || {};
+        // Sem tela sendo compartilhada não há o que oferecer: o espectador aguarda o aviso de início.
+        if (!sid || !session || !hostLocalStream) return;
+        startPeer(sid, session);
+    };
+    socket.on('video_offer_requested', hostOfferRequestHandler);
 
     async function startShare() {
-        // getDisplayMedia só existe em contexto seguro (https:// ou
-        // localhost). Se faltar, o clique parecia "não fazer nada" antes —
-        // agora avisamos o motivo real.
+        // getDisplayMedia só existe em contexto seguro (https:// ou localhost).
         if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
             if (window.showToast) {
-                window.showToast(
-                    window.t('room.share_unavailable_insecure_context'),
-                    'error'
-                );
+                window.showToast(window.t('room.share_unavailable_insecure_context'), 'error');
             }
             return;
         }
+        if (startingShare || hostLocalStream) return;
+        startingShare = true;
 
+        let stream;
         try {
-            hostLocalStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         } catch (err) {
             console.error('RoomsCode: compartilhamento cancelado ou negado pelo navegador.', err);
             if (window.showToast) {
                 window.showToast(window.t('room.share_permission_denied'), 'error');
             }
             return;
+        } finally {
+            startingShare = false;
         }
 
+        hostLocalStream = stream;
         videoEl.srcObject = hostLocalStream;
         setScreenPlaceholderVisible(false);
         toggleBtn.textContent = window.t('room.share_toggle_stop');
         toggleBtn.classList.remove('share-btn-center');
         toggleBtn.classList.add('share-btn-corner');
 
-        Object.values(peerConnections).forEach((pc) => {
-            hostLocalStream.getTracks().forEach((track) => pc.addTrack(track, hostLocalStream));
-        });
-
-        // Se o usuário parar pelo próprio painel do navegador (em vez do
-        // nosso botão), refletimos o estado do botão também.
+        // Se o usuário parar pelo painel do navegador em vez do nosso botão, refletimos no botão também.
         hostLocalStream.getVideoTracks()[0].addEventListener('ended', stopShare);
+
+        // Os espectadores presentes respondem a este aviso pedindo a oferta.
+        socket.emit('screen_share_started');
     }
 
     function stopShare() {
         if (hostLocalStream) {
-            // pc.removeTrack() de fato tira a track da conexão e dispara
-            // renegociação (só track.stop() não faz isso).
-            Object.values(peerConnections).forEach((pc) => {
-                pc.getSenders().forEach((sender) => {
-                    if (sender.track && hostLocalStream.getTracks().includes(sender.track)) {
-                        pc.removeTrack(sender);
-                    }
-                });
-            });
+            // Fecha as conexões em vez de renegociar: uma nova transmissão começa limpa, com conexões novas.
+            closeAllHostPeers();
             hostLocalStream.getTracks().forEach((track) => track.stop());
             hostLocalStream = null;
         }
@@ -197,11 +271,7 @@ function initWebRTCHost(socket, roomState) {
         toggleBtn.classList.remove('share-btn-corner');
         toggleBtn.classList.add('share-btn-center');
 
-        // Sinal explícito via socket — mais confiável do que depender só
-        // do estado da track WebRTC chegando no Espectador.
-        if (roomState.code) {
-            socket.emit('screen_share_stopped', { room_code: roomState.code });
-        }
+        socket.emit('screen_share_stopped');
     }
 
     toggleBtn.addEventListener('click', () => {
@@ -212,200 +282,279 @@ function initWebRTCHost(socket, roomState) {
         }
     });
 
-    // Chamado (via window.onSpectatorJoined) quando um novo Espectador entra
-    // na sala, para abrir uma nova conexão de vídeo dedicada a ele — e
-    // também reaproveitado por room-init.js logo após um reconnect do Host,
-    // uma vez pra cada espectador que já estava na sala (ver comentário
-    // grande no topo desta função).
-    window.onSpectatorJoined = (spectatorSid) => {
-        // Defensivo: se por algum motivo já existir uma conexão pra esse
-        // sid (não deveria, sids são únicos por conexão), fecha a antiga
-        // antes de recriar, pra nunca deixar duas RTCPeerConnections
-        // competindo pelo mesmo espectador.
-        closeHostPeerConnection(spectatorSid);
-
-        const pc = new RTCPeerConnection(RTC_CONFIG);
-        peerConnections[spectatorSid] = pc;
-        const iceRestartAttempts = { count: 0 };
-
-        if (hostLocalStream) {
-            hostLocalStream.getTracks().forEach((track) => pc.addTrack(track, hostLocalStream));
-        }
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('webrtc_signal', {
-                    target_sid: spectatorSid,
-                    signal: { candidate: event.candidate },
-                });
-            }
-        };
-
-        // Monitora a saúde da conexão (rede instável, troca de rede, NAT) e tenta ICE restart automaticamente.
-        pc.oniceconnectionstatechange = () => {
-            const state = pc.iceConnectionState;
-            if (state === 'connected' || state === 'completed') {
-                iceRestartAttempts.count = 0; // conexão saudável de novo, reseta o contador
-                return;
-            }
-            if (state === 'disconnected' || state === 'failed') {
-                attemptIceRestart(
-                    pc,
-                    (offer) => socket.emit('webrtc_signal', { target_sid: spectatorSid, signal: offer }),
-                    iceRestartAttempts,
-                    `espectador ${spectatorSid}`
-                );
-            }
-        };
-
-        // onnegotiationneeded dispara tanto na criação da conexão (mesmo
-        // sem nenhuma track ainda, se o host ainda não estava
-        // compartilhando quando o espectador entrou) quanto sempre que uma
-        // track é adicionada depois (ex: ao clicar em "Compartilhar tela")
-        // ou quando pc.restartIce() é chamado acima, cobrindo os três
-        // casos corretamente.
-        pc.onnegotiationneeded = async () => {
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                socket.emit('webrtc_signal', { target_sid: spectatorSid, signal: offer });
-            } catch (err) {
-                console.error('RoomsCode: falha ao (re)negociar conexão com espectador.', err);
-            }
-        };
-    };
-
-    // Fecha e libera a conexão do espectador que saiu de verdade. Chamado por room-init.js via 'spectator_left'.
+    // Espectador que saiu de verdade: libera a conexão dele (chamado por room-init.js via 'spectator_left').
     window.onSpectatorLeft = (spectatorSid) => {
-        closeHostPeerConnection(spectatorSid);
+        closeHostPeer(spectatorSid);
     };
 }
 
 // ---- Lado do Espectador ----
-//
-// Mesmo raciocínio do lado do Host: guardado fora da função pra
-// initWebRTCSpectator poder ser chamada de novo (a cada 'joined_room' —
-// tanto na entrada normal quanto numa reconexão, com F5 ou não — e também
-// quando o Host reconecta) sem acumular RTCPeerConnections ou listeners
-// duplicados no socket.
-let spectatorPc = null;
-let spectatorWebrtcSignalHandler = null;
-let spectatorScreenShareStoppedHandler = null;
+let spectatorSession = null; // { destroy() } da inicialização atual
 
 /**
- * Lado do Espectador: uma única conexão recebendo o vídeo do Host.
- * Idempotente — fecha a conexão anterior e recria do zero a cada 'joined_room' (F5 ou reconexão automática).
+ * Lado do Espectador: recebe o vídeo do Host com estados explícitos e individuais:
+ *   waiting    — o Host não está compartilhando
+ *   connecting — pedindo/negociando a conexão ("Conectando…")
+ *   playing    — o primeiro quadro apareceu
+ *   failed     — não chegou: "Não foi possível receber a tela do host." + "Tentar novamente"
+ * Idempotente — descarta a inicialização anterior a cada 'joined_room' (entrada, F5 ou reconexão).
  */
 function initWebRTCSpectator(socket, roomState) {
-    if (spectatorPc) {
-        try {
-            spectatorPc.close();
-        } catch (err) {
-            // idem: fechar uma conexão já degradada não deveria travar a
-            // reinicialização.
-        }
-        spectatorPc = null;
-    }
-    if (spectatorWebrtcSignalHandler) {
-        socket.off('webrtc_signal', spectatorWebrtcSignalHandler);
-        spectatorWebrtcSignalHandler = null;
-    }
-    if (spectatorScreenShareStoppedHandler) {
-        socket.off('screen_share_stopped', spectatorScreenShareStoppedHandler);
-        spectatorScreenShareStoppedHandler = null;
-    }
+    if (spectatorSession) spectatorSession.destroy();
 
     const videoEl = document.getElementById('video-display');
+    const placeholder = document.getElementById('screen-placeholder');
+    let destroyed = false;
+    let state = null;
+
+    let pc = null;
+    let queue = null;
+    let session = null;
+    let hostSid = null;
+    let offerTimer = null;
+    let mediaTimer = null;
+    let disconnectedTimer = null;
+    let frameTimer = null;
+    let offerAttempts = 0;
+    let autoRetries = 0;
     let hasWarnedUnstable = false;
 
-    // Estado limpo já de cara: em vez de deixar o último frame recebido
-    // (agora órfão) na tela até a negociação nova terminar (ou pior, nunca
-    // terminar), volta pro placeholder de "aguardando compartilhamento" na
-    // hora.
-    videoEl.srcObject = null;
-    setScreenPlaceholderVisible(true);
-    if (window.setScreenActive) window.setScreenActive(false);
+    // Muted: sem isso o navegador pode bloquear o autoplay depois de um F5 (a página recarrega sem clique) e a tela fica preta.
+    videoEl.muted = true;
 
-    const pc = new RTCPeerConnection(RTC_CONFIG);
-    spectatorPc = pc;
-
-    function stopReceiving() {
-        videoEl.srcObject = null;
-        setScreenPlaceholderVisible(true);
-        if (window.setScreenActive) {
-            window.setScreenActive(false);
-        }
-        // Se o Espectador estava em tela cheia (ou com a tela escondida)
-        // quando o Host parou de compartilhar, não faz sentido continuar
-        // exibindo isso — sai da tela cheia sozinho; o modo "esconder tela"
-        // já se resolve sozinho em updateViewerLayout (só tem efeito
-        // enquanto screenActive é true).
-        if (window.exitScreenFullscreen) {
-            window.exitScreenFullscreen();
+    function renderStatus(message, withRetry) {
+        if (!placeholder) return;
+        placeholder.style.display = 'flex';
+        placeholder.textContent = message;
+        if (withRetry) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'screen-retry-btn';
+            button.textContent = window.t('room.video_retry');
+            button.addEventListener('click', manualRetry);
+            placeholder.appendChild(button);
         }
     }
 
-    pc.ontrack = (event) => {
-        videoEl.srcObject = event.streams[0];
-        setScreenPlaceholderVisible(false);
-        if (window.setScreenActive) {
-            window.setScreenActive(true);
-        }
-
-        event.track.addEventListener('ended', stopReceiving);
-    };
-
-    // O Espectador só responde (não criou a oferta original), então não
-    // pode iniciar um ICE restart sozinho — isso é papel de quem ofertou
-    // (o Host, ver initWebRTCHost acima). Aqui só observamos e avisamos:
-    // se o Host conseguir recuperar, o próprio restart dele já resolve dos
-    // dois lados; se a rede do Espectador é que caiu de vez, é a
-    // reconexão geral da página (room-init.js) que vai trazê-lo de volta,
-    // chamando initWebRTCSpectator de novo.
-    pc.oniceconnectionstatechange = () => {
-        const state = pc.iceConnectionState;
-        if (state === 'connected' || state === 'completed') {
-            hasWarnedUnstable = false;
+    function setState(next) {
+        state = next;
+        if (next === 'playing') {
+            setScreenPlaceholderVisible(false);
+            if (window.setScreenActive) window.setScreenActive(true);
             return;
         }
-        if ((state === 'disconnected' || state === 'failed') && !hasWarnedUnstable) {
-            hasWarnedUnstable = true;
-            console.warn(`RoomsCode: conexão de vídeo com o host degradou (${state}).`);
-            if (window.showToast) {
-                window.showToast(window.t('room.video_connection_unstable'), 'error');
+        videoEl.srcObject = null;
+        if (window.setScreenActive) window.setScreenActive(false);
+        if (next === 'waiting') {
+            renderStatus(window.t('room.waiting_screen_share'), false);
+            // Tela cheia sem vídeo só mostraria uma área preta.
+            if (window.exitScreenFullscreen) window.exitScreenFullscreen();
+        } else if (next === 'connecting') {
+            renderStatus(window.t('room.video_connecting'), false);
+        } else if (next === 'failed') {
+            renderStatus(window.t('room.video_failed'), true);
+        }
+    }
+
+    function clearTimers() {
+        clearTimeout(offerTimer);
+        clearTimeout(mediaTimer);
+        clearTimeout(disconnectedTimer);
+        clearInterval(frameTimer);
+        offerTimer = mediaTimer = disconnectedTimer = frameTimer = null;
+    }
+
+    function teardownAttempt() {
+        clearTimers();
+        if (pc) {
+            const old = pc;
+            pc = null;
+            old.ontrack = old.onicecandidate = old.oniceconnectionstatechange = null;
+            try {
+                old.close();
+            } catch (err) {
+                // fechar uma conexão já degradada não deve travar a limpeza
             }
         }
-    };
+        queue = null;
+        session = null;
+        hostSid = null;
+    }
 
-    // Sinal explícito do Host (via signaling.py) de que ele parou de
-    // compartilhar — não depende do evento 'ended' da track, que pode não
-    // disparar de forma confiável dependendo do navegador.
-    spectatorScreenShareStoppedHandler = stopReceiving;
-    socket.on('screen_share_stopped', spectatorScreenShareStoppedHandler);
+    function fail() {
+        teardownAttempt();
+        setState('failed');
+    }
 
-    pc.onicecandidate = (event) => {
-        if (event.candidate && roomState.hostSid) {
-            socket.emit('webrtc_signal', {
-                target_sid: roomState.hostSid,
-                signal: { candidate: event.candidate },
-            });
+    // Uma tentativa deu errado (sem quadros, ICE failed...): refaz do zero algumas vezes antes de incomodar o usuário.
+    function handleAttemptFailure(reason) {
+        if (destroyed) return;
+        console.warn(`RoomsCode: tentativa de receber a tela falhou (${reason}).`);
+        if (autoRetries < MAX_AUTO_RETRIES) {
+            autoRetries += 1;
+            offerAttempts = 0;
+            startAttempt();
+        } else {
+            fail();
         }
-    };
+    }
 
-    spectatorWebrtcSignalHandler = async (data) => {
-        const { sender_sid: senderSid, signal } = data;
+    function checkFrame() {
+        if (destroyed || state === 'playing' || !pc || !videoEl.srcObject) return;
+        if (videoEl.videoWidth > 0) {
+            clearTimeout(mediaTimer);
+            clearInterval(frameTimer);
+            mediaTimer = frameTimer = null;
+            autoRetries = 0;
+            hasWarnedUnstable = false;
+            setState('playing');
+        }
+    }
+
+    function onOfferTimeout() {
+        offerTimer = null;
+        if (destroyed) return;
+        if (offerAttempts >= MAX_OFFER_ATTEMPTS) {
+            fail();
+        } else {
+            startAttempt();
+        }
+    }
+
+    function startAttempt() {
+        if (destroyed) return;
+        teardownAttempt();
+        offerAttempts += 1;
+        session = randomSessionId();
+        const attemptSession = session;
+        const attemptPc = new RTCPeerConnection(RTC_CONFIG);
+        pc = attemptPc;
+        queue = createSignalQueue(attemptPc);
+        const isCurrent = () => !destroyed && pc === attemptPc;
+
+        // Fica em "Conectando…" já na primeira tentativa; um quadro de tentativa anterior não deve sobrar na tela.
+        if (state !== 'connecting') setState('connecting');
+        else videoEl.srcObject = null;
+
+        attemptPc.ontrack = (event) => {
+            if (!isCurrent()) return;
+            videoEl.srcObject = event.streams[0] || new MediaStream([event.track]);
+            const playback = videoEl.play();
+            if (playback && playback.catch) {
+                playback.catch((err) => {
+                    // Autoplay recusado pelo navegador: o botão "Tentar novamente" dá o clique que libera.
+                    if (isCurrent() && err && err.name === 'NotAllowedError') fail();
+                });
+            }
+            checkFrame();
+        };
+
+        attemptPc.onicecandidate = (event) => {
+            if (event.candidate && hostSid && isCurrent()) {
+                socket.emit('webrtc_signal', { target_sid: hostSid, signal: { candidate: event.candidate }, session: attemptSession });
+            }
+        };
+
+        attemptPc.oniceconnectionstatechange = () => {
+            if (!isCurrent()) return;
+            const iceState = attemptPc.iceConnectionState;
+            if (iceState === 'connected' || iceState === 'completed') {
+                clearTimeout(disconnectedTimer);
+                disconnectedTimer = null;
+                hasWarnedUnstable = false;
+            } else if (iceState === 'failed') {
+                handleAttemptFailure('ICE failed');
+            } else if (iceState === 'disconnected') {
+                if (!hasWarnedUnstable) {
+                    hasWarnedUnstable = true;
+                    if (window.showToast) window.showToast(window.t('socket.video_connection_unstable'), 'error');
+                }
+                if (!disconnectedTimer) {
+                    disconnectedTimer = setTimeout(() => {
+                        disconnectedTimer = null;
+                        if (isCurrent()) handleAttemptFailure('ICE disconnected');
+                    }, DISCONNECTED_GRACE_MS);
+                }
+            }
+        };
+
+        // O espectador só pede; a oferta chega depois. Se ela nunca chegar, pede de novo.
+        socket.emit('video_request_offer', { session: attemptSession });
+        offerTimer = setTimeout(onOfferTimeout, OFFER_WAIT_MS);
+    }
+
+    function manualRetry() {
+        autoRetries = 0;
+        offerAttempts = 0;
+        startAttempt();
+    }
+
+    function onSignal(data) {
+        const { sender_sid: senderSid, signal, session: signalSession } = data || {};
+        // Sinal de uma tentativa antiga (já abandonada): descarta.
+        if (destroyed || !pc || !signal || signalSession !== session) return;
+        const attemptSession = session;
+        const attemptPc = pc;
+        const attemptQueue = queue;
+        hostSid = senderSid;
         roomState.hostSid = senderSid;
 
         if (signal.type === 'offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(signal));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit('webrtc_signal', { target_sid: senderSid, signal: answer });
+            clearTimeout(offerTimer);
+            offerTimer = null;
+            if (!mediaTimer && state !== 'playing') {
+                mediaTimer = setTimeout(() => {
+                    mediaTimer = null;
+                    handleAttemptFailure('sem quadros');
+                }, MEDIA_TIMEOUT_MS);
+                frameTimer = setInterval(checkFrame, FRAME_POLL_MS);
+            }
+            attemptQueue.setRemoteDescription(signal, async () => {
+                const answer = await attemptPc.createAnswer();
+                await attemptPc.setLocalDescription(answer);
+                if (!destroyed && pc === attemptPc) {
+                    socket.emit('webrtc_signal', { target_sid: senderSid, signal: answer, session: attemptSession });
+                }
+            });
         } else if (signal.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            attemptQueue.addCandidate(signal.candidate);
         }
+    }
+
+    function onScreenShareStarted() {
+        if (destroyed) return;
+        autoRetries = 0;
+        offerAttempts = 0;
+        startAttempt();
+    }
+
+    function onScreenShareStopped() {
+        if (destroyed) return;
+        teardownAttempt();
+        setState('waiting');
+    }
+
+    socket.on('webrtc_signal', onSignal);
+    socket.on('screen_share_started', onScreenShareStarted);
+    socket.on('screen_share_stopped', onScreenShareStopped);
+
+    spectatorSession = {
+        destroy() {
+            destroyed = true;
+            teardownAttempt();
+            socket.off('webrtc_signal', onSignal);
+            socket.off('screen_share_started', onScreenShareStarted);
+            socket.off('screen_share_stopped', onScreenShareStopped);
+            if (spectatorSession && spectatorSession.destroy === this.destroy) spectatorSession = null;
+        },
     };
-    socket.on('webrtc_signal', spectatorWebrtcSignalHandler);
+
+    // Estado inicial vem do servidor: quem entra (ou volta de um F5) com a tela já em andamento a pede na hora.
+    if (roomState.screenSharing) {
+        startAttempt();
+    } else {
+        setState('waiting');
+    }
 }
 
 window.initWebRTCHost = initWebRTCHost;

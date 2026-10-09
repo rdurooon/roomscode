@@ -95,7 +95,6 @@ def register_presence_events(socketio):
                 "host_name": room.host_name,
                 "ext_token": room.ext_token,
                 "extension_connected": room.extension_sid is not None,
-                "spectator_sids": list(room.spectators.keys()),
                 "tabs": [
                     {
                         "tabId": tab_id,
@@ -158,6 +157,7 @@ def register_presence_events(socketio):
                 "host_cursor": room.host_cursor,
                 "spectators": list(room.spectators.values()),
                 "chat_muted": room_manager.is_chat_muted(room, request.sid),
+                "screen_sharing": room.screen_sharing,
             },
         )
 
@@ -241,6 +241,9 @@ def register_presence_events(socketio):
             if disconnected_room is None:
                 return
 
+            # Sem o Host a transmissão acabou: espectadores voltam pro
+            # "aguardando compartilhamento" em vez de ficar com a imagem parada.
+            emit("screen_share_stopped", {}, room=disconnected_room.code)
             emit(
                 "host_disconnected_grace",
                 {

@@ -202,11 +202,24 @@ home.
   sozinha (rede do computador do Host, não da sala), ela reconecta e
   reautentica automaticamente — o token continua válido, não precisa
   digitar de novo.
-- **WebRTC (vídeo da tela)**: monitora o estado da conexão ICE em tempo
-  real; se degradar (`disconnected`/`failed`) por instabilidade de rede,
-  tenta um *ICE restart* automático (até 3 tentativas) antes de desistir e
-  só então avisar o usuário — antes, uma rede instável simplesmente matava
-  a chamada de vídeo em silêncio, sem tentar se recuperar.
+- **WebRTC (vídeo da tela)**: é o ESPECTADOR quem pede a conexão
+  (`video_request_offer`), já com o handler registrado e com um id de
+  tentativa (`session`) que acompanha todas as mensagens daquela tentativa
+  — sinais atrasados de uma tentativa abandonada são descartados, e
+  candidatos ICE que chegam antes da descrição remota ficam em fila. Se a
+  oferta não chega em 4s o pedido se repete (até 3x); se chega e nenhum
+  quadro aparece em 12s, ou o ICE falha, a conexão é refeita do zero (até 2x
+  sozinha). O servidor guarda se o Host está compartilhando
+  (`room.screen_sharing`) e informa isso a quem entra, então entrada
+  tardia, queda e volta e F5 pedem a tela na hora. O Host, por sua vez, ainda
+  tenta *ICE restart* (até 3x) numa conexão que degradou.
+- **Estados individuais do vídeo (Espectador)**: "aguardando" (Host não está
+  compartilhando), "conectando…", exibindo, ou "Não foi possível receber a
+  tela do host." com o botão "Tentar novamente". O aviso é só do espectador
+  afetado — nada é enviado ao resto da sala — e código, cursor e chat
+  seguem funcionando (são outro canal). O `<video>` do espectador é `muted`:
+  sem isso o navegador pode bloquear o autoplay depois de um F5 (sem clique)
+  e a tela fica preta.
 - **Socket.IO (Host/Espectador no navegador)**: parâmetros de reconexão
   explícitos e detecção de queda ajustada (`ping_interval`/`ping_timeout`
   do backend) pra avisar de uma queda de verdade bem mais rápido que o
@@ -217,20 +230,19 @@ home.
 ## Limitações conhecidas (por design, por enquanto)
 
 - **Vídeo em topologia mesh**: o Host conecta diretamente com cada
-  Espectador via WebRTC. Funciona bem para poucos espectadores, mas não
-  escala para turmas grandes — migrar para um SFU (ex: LiveKit) resolveria
-  isso.
-- **Só STUN público** (Google) configurado, sem servidor TURN — em redes
-  com NAT/firewall restritivo (comum em instituições, ex: faixas `10.x.x.x`)
-  a conexão de vídeo pode não fechar e a tela do Host fica preta pro
-  Espectador, mesmo com áudio/chat/código funcionando normalmente (o ICE
-  restart automático ajuda em instabilidade transitória, mas não resolve
-  uma rede que bloqueia WebRTC por completo). Agora que o site já está
-  atrás de um domínio HTTPS de verdade, adicionar um servidor TURN (ou
-  TURN sobre TLS, `turns:`, pra redes ainda mais restritivas) é só
-  acrescentar uma entrada em `RTC_CONFIG.iceServers`
-  (`frontend/static/js/webrtc-client.js`) — decisão de infraestrutura
-  adiada por enquanto.
+  Espectador via WebRTC e, até onde se sabe, cada conexão codifica a tela
+  por conta própria — o custo de CPU e de upload do computador do Host
+  cresce com o número de espectadores. Não há limite de espectadores nem de
+  qualidade de propósito (decisão do projeto).
+- **Só STUN público** (Google), sem TURN: em redes com NAT/firewall
+  restritivo (comum em instituições) ou NAT simétrico (alguns dados móveis)
+  a conexão de vídeo pode não fechar. Nesses casos o espectador vê o aviso
+  individual acima, em vez de uma tela preta. Um TURN precisa ser
+  alcançável pela internet (IP público/portas abertas), o que a
+  hospedagem atual (atrás de CGNAT, só via Cloudflare Tunnel) não oferece, e
+  passar o vídeo pelo Tunnel arrisca violar os termos da Cloudflare — por
+  isso não foi adotado. Um SFU/TURN (ex.: LiveKit) só vira opção com um
+  servidor de IP público.
 - **Compartilhamento de arquivos limitado ao workspace atual**: o Host só
   compartilha o que estiver dentro da pasta/workspace aberta no VS Code —
   não existe (ainda) um jeito de ocultar seletivamente só alguns arquivos

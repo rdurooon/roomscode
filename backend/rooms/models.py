@@ -49,3 +49,8 @@ class Room:
     # is None e host_disconnected_at is not None; nesse estado a sala
     # continua de pé (ver RoomManager.mark_host_disconnected/reconnect_host).
     host_disconnected_at: Optional[float] = None
+    # True enquanto o Host está compartilhando a tela agora. Fica só no
+    # servidor porque quem entra depois (ou volta de um F5) precisa saber se
+    # há tela pra pedir, e pra não depender de um aviso "único" que o
+    # espectador pode ter perdido (ver events/signaling.py).
+    screen_sharing: bool = False

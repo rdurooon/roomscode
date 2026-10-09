@@ -53,7 +53,7 @@
         <div class="viewer-grid" id="viewer-grid">
             <section class="panel screen-panel" id="screen-panel">
                 <h3>{{ t('room.host_screen_heading') }}</h3>
-                <video id="video-display" autoplay {% if role == 'host' %}muted{% endif %} playsinline></video>
+                <video id="video-display" autoplay muted playsinline></video>
                 {% if role != 'host' %}
                 <p class="screen-placeholder" id="screen-placeholder">{{ t('room.waiting_screen_share') }}</p>
                 {% endif %}

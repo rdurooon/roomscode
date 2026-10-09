@@ -16,6 +16,7 @@
         isHost: document.body.dataset.roomRole === 'host',
         name: '',
         hostSid: null,
+        screenSharing: false,
         chatMuted: false,
     };
 
@@ -415,12 +416,10 @@
             window.loadInitialTabs(data.tabs, data.host_cursor);
         }
 
-        // Roda em toda reconexão do Host (F5 ou não), reconstruindo a conexão de cada espectador já na sala.
+        // Roda em toda reconexão do Host (F5 ou não). Não precisa reconstruir nada por espectador:
+        // quem estiver esperando a tela pede a oferta de novo quando o Host voltar a compartilhar.
         if (window.initWebRTCHost) {
             window.initWebRTCHost(socket, roomState);
-            (data.spectator_sids || []).forEach((spectatorSid) => {
-                if (window.onSpectatorJoined) window.onSpectatorJoined(spectatorSid);
-            });
         }
 
         if (!roomSetupDone) {
@@ -465,10 +464,6 @@
         if (!roomState.isHost) {
             hideReconnectBanner();
             if (window.showToast) window.showToast(window.t('socket.host_reconnected'), 'success');
-            // Reconstrói a conexão de vídeo, já que o Host monta uma nova pra este espectador ao reconectar.
-            if (window.initWebRTCSpectator) {
-                window.initWebRTCSpectator(socket, roomState);
-            }
         }
     });
 
@@ -517,6 +512,8 @@
         }
 
         // Roda em toda entrada/reentrada na sala (F5 ou reconexão automática do socket.io com sid novo).
+        // O servidor informa se o Host já está compartilhando, pra pedir a tela na hora.
+        roomState.screenSharing = !!data.screen_sharing;
         if (window.initWebRTCSpectator) {
             window.initWebRTCSpectator(socket, roomState);
         }
@@ -556,9 +553,6 @@
 
     socket.on('spectator_joined', (data) => {
         updateSpectatorList(data.spectators);
-        if (roomState.isHost && window.onSpectatorJoined) {
-            window.onSpectatorJoined(data.sid);
-        }
     });
 
     socket.on('spectator_left', (data) => {

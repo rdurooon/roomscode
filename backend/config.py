@@ -81,6 +81,16 @@ class Config:
     CURSOR_RATE_LIMIT_COUNT = 40
     CURSOR_RATE_LIMIT_WINDOW_SECONDS = 10
 
+    # Vídeo da tela do Host (ver events/signaling.py). Ligar/desligar o
+    # compartilhamento é avisado a toda a sala, então tem limite próprio.
+    SCREEN_SHARE_STATE_RATE_LIMIT_COUNT = 10
+    SCREEN_SHARE_STATE_RATE_LIMIT_WINDOW_SECONDS = 10
+    # Pedido de oferta de vídeo do espectador — por sid. Cada pedido faz o
+    # navegador do Host montar uma conexão nova, então precisa de teto; o
+    # valor cobre as tentativas automáticas + cliques em "Tentar novamente".
+    VIDEO_OFFER_REQUEST_RATE_LIMIT_COUNT = 15
+    VIDEO_OFFER_REQUEST_RATE_LIMIT_WINDOW_SECONDS = 30
+
     # ---- Proteção contra abuso HTTP (ver backend/abuse_guard.py) ----
     # Por IP, em janela deslizante. Páginas e arquivos estáticos têm limites
     # separados (uma página carrega dezenas de estáticos). Os padrões são

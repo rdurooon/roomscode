@@ -236,6 +236,20 @@ class RoomManager:
                 return None
             room.host_sid = None
             room.host_disconnected_at = time.monotonic()
+            # A captura de tela vive na página do Host; sem socket não há
+            # mais transmissão (o Host precisa clicar de novo ao voltar).
+            room.screen_sharing = False
+            return room
+
+    def set_screen_sharing(self, sid: str, active: bool) -> Optional[Room]:
+        """Liga/desliga o estado "Host compartilhando a tela". Só vale se
+        quem pediu é o Host atual da sala; retorna a sala, ou None."""
+        with self._lock:
+            code = self._sid_to_code.get(sid)
+            room = self._rooms.get(code) if code else None
+            if room is None or room.host_sid != sid:
+                return None
+            room.screen_sharing = active
             return room
 
     def reconnect_host(self, code: str, host_session_token: str, new_sid: str) -> Optional[Room]:
