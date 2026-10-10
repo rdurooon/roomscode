@@ -1,263 +1,73 @@
 # RoomsCode
 
-Plataforma para aulas e apresentações de programação ao vivo. Um **Host**
-compartilha a tela e/ou o arquivo ativo do VS Code; **Espectadores**
-acompanham em tempo real (com highlight de sintaxe, zoom/scroll
-independentes) e conversam pelo chat, sem poder editar nada.
+Plataforma web para aulas e apresentações de programação ao vivo. O **Host** compartilha a tela e o código do VS Code; os **Espectadores** acompanham pelo navegador, sem instalar nada, e conversam pelo chat. A interface está em português, inglês e espanhol.
 
-Este repositório é só o site (backend Flask + frontend). A extensão do VS
-Code que o Host usa pra transmitir o código do editor mora num repositório
-irmão, **roomscode-extension** — ver o README de lá pra instalar/rodar.
+- Site: [roomscode.com](https://roomscode.com)
+- Extensão do VS Code (usada pelo Host): [Marketplace](https://marketplace.visualstudio.com/items?itemName=rdurooon.roomscode-extension) · [repositório](https://github.com/rdurooon/roomscode-extension)
 
-## Estrutura do projeto
+## Funcionalidades
 
-```
-roomscode/
-├── backend/      # Flask + Flask-SocketIO (salas, chat, sync. de arquivo, sinalização WebRTC)
-├── frontend/     # Páginas do Host e do Espectador (templates + JS/CSS)
-└── tests/        # Testes de backend (Socket.IO real) e frontend (jsdom)
-```
+- **Tela do Host** transmitida ao vivo, direto pelo navegador.
+- **Código em tempo real**, vindo da extensão: todas as abas abertas, com destaque de sintaxe, zoom e rolagem independentes. O Espectador pode copiar ou baixar o arquivo e ativar **Seguir o Host** para acompanhar a aba e a linha dele.
+- **Chat** com citação de código (`!code(23, main.py)`) e menções (`@nome` ou `!user(nome)`). O Host pode silenciar o chat de um Espectador ou removê-lo da sala.
+- **Sala por código** de 6 caracteres e link de convite.
+- **Reconexão do Host**: se ele cair, a sala espera 60 s (configurável) antes de ser encerrada.
 
-## 1. Rodando o backend
+## Como funciona
+
+Três canais independentes, todos passando pelo backend Flask, que cuida das salas:
+
+- **Vídeo:** WebRTC direto do Host para cada Espectador. O Flask só faz a sinalização; o vídeo não passa por ele.
+- **Código:** a extensão envia o arquivo ativo e, depois, só as alterações (Socket.IO), que o servidor repassa à sala.
+- **Chat:** mensagens por Socket.IO, com sanitização e limite de envio.
+
+Stack: Flask + Flask-SocketIO (eventlet), JavaScript e CSS puros, highlight.js e diff-match-patch.
+
+## Rodando localmente
 
 ```bash
-cd roomscode
 python -m venv venv
 source venv/bin/activate       # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python run.py
 ```
 
-Na primeira execução, se ainda não existir um `.env` nesta pasta, o próprio
-programa cria um com uma `SECRET_KEY` gerada automaticamente — não precisa
-preparar nada antes (ver `backend/secrets_bootstrap.py` e `.env.example`).
+O servidor sobe em `http://localhost:5000`: o Host entra em `/anfitriao` e o Espectador em `/espectador`. Não precisa criar `.env`: na primeira execução o programa gera um com a `SECRET_KEY`.
 
-O servidor sobe em `http://localhost:5000`:
+Para testar sem a extensão, abra o Host e o Espectador em duas abas (o Espectador usa o código de 6 caracteres que o Host mostra) e clique em **Compartilhar tela**. O painel de código só é preenchido com a extensão conectada, usando o **código da extensão** mostrado na tela do Host.
 
-- Página inicial (`/`): dois botões, **Host** e **Espectador**.
-- Página do Host: `http://localhost:5000/anfitriao`
-- Página do Espectador: `http://localhost:5000/espectador`
-
-Ao entrar em qualquer uma das duas, um modal pede o nome (e, no caso do
-Espectador, o código da sala) antes de liberar a interface.
-
-### Testando o fluxo básico (sem a extensão)
-
-1. Abra `/`, clique em **Host** — o modal pede seu nome e, ao confirmar,
-   mostra o código de 6 caracteres da sala pra você repassar.
-2. Abra `/` em outra aba (ou outro navegador), clique em **Espectador** —
-   informe nome e o código da sala no modal.
-3. No Host, clique no botão **Compartilhar tela** (centralizado sobre o
-   painel de vídeo) — ele vira **Parar compartilhamento** e migra pro canto
-   inferior esquerdo do painel enquanto a tela está sendo compartilhada.
-4. O painel de código só é preenchido quando a extensão do VS Code
-   (repositório **roomscode-extension**) estiver conectada à mesma sala,
-   usando o código de extensão mostrado na tela do Host (botão fixo
-   "Copiar código da extensão" — não precisa mais do código da sala nesse
-   passo, o código da extensão já identifica a sala sozinho).
-
-## Baixando a extensão
-
-A home (`/`) e o painel de código do Host (enquanto a extensão ainda não
-está conectada à sala) têm um botão **"Baixar extensão"** que abre, em
-nova aba, a página da extensão na Marketplace do VS Code:
-https://marketplace.visualstudio.com/items?itemName=rdurooon.roomscode-extension
-
-A URL fica num único lugar: `frontend/templates/partials/extension_download_link.html`.
-Atualizar a extensão passa a ser só um `vsce publish` no repositório
-`roomscode-extension` — este repositório não guarda mais nenhum `.vsix`.
-
-## 2. Rodando em produção (Docker)
+## Produção (Docker)
 
 ```bash
-cd roomscode
 docker compose up -d --build
 ```
 
-Não precisa criar `.env` nem nada antes — a `SECRET_KEY` é gerada sozinha
-dentro de um volume Docker nomeado na primeira subida (ver comentários em
-`docker-compose.yml` e `backend/secrets_bootstrap.py`). Pra atualizações
-subsequentes num servidor já configurado, use `./deploy.sh` (ajuste
-`APP_DIR` no topo do script pro caminho real do seu servidor primeiro).
+Nada precisa ser criado antes: a `SECRET_KEY` é gerada num volume do Docker na primeira subida. Em um servidor já configurado, atualize com `./deploy.sh` (ajuste o `APP_DIR` no topo do script).
 
-## Ajustando o layout
+Variáveis opcionais, em um `.env` ao lado do `docker-compose.yml` (modelo em `.env.example`):
 
-Entre a tela do Host e o painel de código tem uma alça (arraste com o
-mouse) pra redimensionar a proporção entre os dois — útil quando um dos
-dois precisa de mais espaço. A barra de abas e o nome do arquivo ficam
-fixos no topo do painel de código mesmo ao rolar um arquivo grande.
+| Variável | Para quê | Padrão |
+|---|---|---|
+| `FLASK_ENV` | `development` libera CORS aberto para uso local | `production` |
+| `ALLOWED_ORIGIN` | Domínio permitido pelo Socket.IO (CORS) | vazio (só mesma origem) |
+| `TRUSTED_PROXY_COUNT` | Proxies reversos confiáveis na frente do app | `1` |
+| `HOST_RECONNECT_GRACE_SECONDS` | Tempo que a sala espera o Host voltar | `60` |
 
-O painel de código também mostra guias de indentação (linhas verticais
-finas, no estilo VS Code) atrás do código, pra facilitar visualizar blocos
-aninhados em arquivos com muitos níveis de indentação.
+Os demais limites (tamanho de arquivo, proteção contra abuso, ping do Socket.IO) estão em `backend/config.py`.
 
-A cor de destaque do site é sorteada a cada carregamento (ver seção sobre
-o tema mais abaixo) e também tinge sutilmente o fundo da página, atrás dos
-painéis — dando uma sensação de ambiente colorido sem depender de efeitos
-nas próprias janelas.
+## Estrutura do projeto
 
-## Citando código no chat
+```
+roomscode/
+├── backend/    # Flask + Socket.IO: salas, eventos (vídeo, arquivos, chat, presença) e traduções
+├── frontend/   # Templates e JS/CSS das páginas do Host e do Espectador
+├── Dockerfile · docker-compose.yml · deploy.sh
+└── run.py · wsgi.py
+```
 
-O comando é `!code(linha, arquivo)` — por exemplo `!code(23, main.py)`.
-Duas formas de gerar isso, ambas funcionam junto com texto normal na mesma
-mensagem:
+## Limitações conhecidas
 
-1. **Digitando à mão** — digite `!` no chat e um menu de sugestão aparece
-   acima do campo, mostrando os comandos disponíveis. Ao digitar a vírgula
-   e começar o nome do arquivo, um segundo menu sugere as abas abertas no
-   momento (filtrando pelo que você já digitou).
-2. **Seleção de trecho no painel de código** — selecione um pedaço do
-   código, um botão flutuante "Citar linha N no chat" aparece; ao clicar,
-   o comando já sai completo (`!code(N, arquivo)`), com o arquivo
-   preenchido automaticamente a partir da aba que você estava vendo.
-
-Se a linha ou o arquivo citado não existir, o envio é bloqueado, o campo é
-limpo, e um toast explica o motivo.
-
-## Mencionando pessoas no chat
-
-Duas formas, ambas com sugestão de nomes acima do campo enquanto digita:
-
-1. **`!user(nome)`** — digite `!user(` e escolha um dos participantes
-   sugeridos (funciona igual ao `!code`, incluindo Tab pra completar).
-2. **`@nome`** — digite só `@` e a lista de participantes já aparece. Nomes
-   com espaço (ex: "Ana Paula") são reconhecidos inteiros, não só a
-   primeira palavra.
-
-Quando alguém te menciona, seu nome aparece destacado com um fundo sólido
-no chat — mais fácil de notar que só um texto colorido.
-
-## Seguindo o Host
-
-Do lado do Espectador, uma checkbox "Seguir o Host" aparece acima do painel
-de código. Quando marcada, a aba e a linha exibidas trocam automaticamente
-pra acompanhar onde o Host está navegando — inclusive pulando direto pra lá
-assim que você marca a checkbox, sem esperar o próximo movimento do Host.
-Se você trocar de aba manualmente enquanto o modo está ativo, ele desliga
-sozinho (senão o próximo movimento do Host te puxaria de volta sem avisar).
-A checkbox é estilizada: vazia (sem preenchimento) quando desmarcada, e
-preenchida com a cor de destaque atual do site quando marcada.
-
-## Copiando e baixando o arquivo atual
-
-Ao lado do nome do arquivo, dois botões: um copia o conteúdo inteiro da aba
-exibida pra área de transferência, o outro baixa o arquivo (mantendo nome e
-extensão originais, ex: `main.py`). Disponível tanto pro Host quanto pro
-Espectador.
-
-## Código da sala e link de convite
-
-O código da sala **não é segredo**: aparece sempre, sem desfoque, tanto pro
-Host quanto pros Espectadores (o que identifica a conexão da extensão do VS
-Code é o código da extensão, separado). Na barra superior, um clique no
-código copia o código, e o ícone de compartilhar à esquerda dele copia o
-link de convite (`/<código>`). O mesmo ícone aparece ao lado do código no
-popup "Compartilhe esse código com os espectadores:" que o Host vê ao criar
-a sala, com a mesma função.
-
-## Entrando e saindo da sala
-
-Na tela de nome/código (que aparece ao clicar em Host ou Espectador na
-home), um botão "Voltar" ao lado do botão principal permite desistir e
-retornar à home sem precisar recarregar a página.
-
-Clicar na marca "RoomsCode" (canto superior esquerdo) ou no ícone de porta
-(canto superior direito), já dentro da sala, abre um popup de confirmação
-(no mesmo estilo visual do modal de entrada, não o `confirm()` padrão do
-navegador) antes de sair:
-
-- **Host**: "Deseja sair da sala? Ao sair, a sala será desfeita!" — ao
-  confirmar, a sala é encerrada pra todo mundo (mensagem "O host desfez a
-  sala.").
-- **Espectador**: "Deseja sair da sala? Para retornar, use o código
-  novamente." — só ele sai, a sala continua.
-
-O popup pode ser fechado com "Cancelar", clicando fora do card, ou com Esc.
-
-Se o Host cair sem avisar (perda de conexão, F5, fechar a aba), a sala
-**não** é encerrada na hora: ela entra em um estado de graça (60s por
-padrão, configurável via `HOST_RECONNECT_GRACE_SECONDS`) enquanto o Host
-tenta voltar. Os Espectadores veem um aviso fixo no topo da página com a
-contagem regressiva ("O host perdeu a conexão. Se não voltar em Xs, a sala
-será encerrada."), e continuam vendo o último código/tela normalmente. Se o
-Host reconectar a tempo — automaticamente (o navegador tenta sozinho) ou
-recarregando a página — a sala é retomada exatamente do ponto onde parou,
-sem perder nada, e todos são avisados ("O host reconectou!"). Só se o prazo
-esgotar sem ele voltar é que a sala é encerrada de vez, com a mensagem "O
-host não retornou a tempo e a sala foi encerrada." e redirecionamento pra
-home.
-
-## Robustez de conexão
-
-- **Reconexão do Host**: ver seção acima. A sala guarda um token de sessão
-  do Host (`host_session_token`, nunca exposto a Espectadores) só pra isso
-  — sem ele, ninguém mais consegue "assumir" uma sala órfã sabendo apenas o
-  código (que é semi-público).
-- **Extensão VS Code**: mostra uma notificação de progresso durante a
-  conexão (com o tempo decorrido e o estágio atual — conectando ou
-  autenticando — e um botão de cancelar), tenta WebSocket direto primeiro
-  (evita o round-trip extra do handshake por polling do socket.io) e mede a
-  latência real com o servidor a cada 15s, exibida no tooltip da barra de
-  status (`conectado à sala ABC123 (42ms — ótima)`). Se a extensão cair
-  sozinha (rede do computador do Host, não da sala), ela reconecta e
-  reautentica automaticamente — o token continua válido, não precisa
-  digitar de novo.
-- **WebRTC (vídeo da tela)**: é o ESPECTADOR quem pede a conexão
-  (`video_request_offer`), já com o handler registrado e com um id de
-  tentativa (`session`) que acompanha todas as mensagens daquela tentativa
-  — sinais atrasados de uma tentativa abandonada são descartados, e
-  candidatos ICE que chegam antes da descrição remota ficam em fila. Se a
-  oferta não chega em 4s o pedido se repete (até 3x); se chega e nenhum
-  quadro aparece em 12s, ou o ICE falha, a conexão é refeita do zero (até 2x
-  sozinha). O servidor guarda se o Host está compartilhando
-  (`room.screen_sharing`) e informa isso a quem entra, então entrada
-  tardia, queda e volta e F5 pedem a tela na hora. O Host, por sua vez, ainda
-  tenta *ICE restart* (até 3x) numa conexão que degradou.
-- **Estados individuais do vídeo (Espectador)**: "aguardando" (Host não está
-  compartilhando), "conectando…", exibindo, ou "Não foi possível receber a
-  tela do host." com o botão "Tentar novamente". O aviso é só do espectador
-  afetado — nada é enviado ao resto da sala — e código, cursor e chat
-  seguem funcionando (são outro canal). O `<video>` do espectador é `muted`:
-  sem isso o navegador pode bloquear o autoplay depois de um F5 (sem clique)
-  e a tela fica preta.
-- **Socket.IO (Host/Espectador no navegador)**: parâmetros de reconexão
-  explícitos e detecção de queda ajustada (`ping_interval`/`ping_timeout`
-  do backend) pra avisar de uma queda de verdade bem mais rápido que o
-  default da lib, sem confundir jitter de rede pontual com desconexão.
-  Espectadores também guardam sessão (código + nome) pra voltar sozinhos à
-  sala depois de uma queda breve, sem precisar digitar tudo de novo.
-
-## Limitações conhecidas (por design, por enquanto)
-
-- **Vídeo em topologia mesh**: o Host conecta diretamente com cada
-  Espectador via WebRTC e, até onde se sabe, cada conexão codifica a tela
-  por conta própria — o custo de CPU e de upload do computador do Host
-  cresce com o número de espectadores. Não há limite de espectadores nem de
-  qualidade de propósito (decisão do projeto).
-- **Só STUN público** (Google), sem TURN: em redes com NAT/firewall
-  restritivo (comum em instituições) ou NAT simétrico (alguns dados móveis)
-  a conexão de vídeo pode não fechar. Nesses casos o espectador vê o aviso
-  individual acima, em vez de uma tela preta. Um TURN precisa ser
-  alcançável pela internet (IP público/portas abertas), o que a
-  hospedagem atual (atrás de CGNAT, só via Cloudflare Tunnel) não oferece, e
-  passar o vídeo pelo Tunnel arrisca violar os termos da Cloudflare — por
-  isso não foi adotado. Um SFU/TURN (ex.: LiveKit) só vira opção com um
-  servidor de IP público.
-- **Compartilhamento de arquivos limitado ao workspace atual**: o Host só
-  compartilha o que estiver dentro da pasta/workspace aberta no VS Code —
-  não existe (ainda) um jeito de ocultar seletivamente só alguns arquivos
-  DENTRO do workspace.
-- **Estado em memória**: as salas (e o estado de graça de reconexão) vivem
-  na memória do processo Flask. Reiniciar o servidor encerra todas as
-  salas ativas, mesmo as em estado de graça. Migrar para Redis quando for
-  rodar com múltiplos workers.
-- **Sem autenticação**: qualquer pessoa com o código da sala entra como
-  Espectador. Suficiente por enquanto; considerar autenticação em fase
-  futura.
-
-## Próximos passos
-
-Fases futuras planejadas: múltiplas abas visíveis simultaneamente,
-bloqueio de arquivos específicos pelo Host, citação de linha de código no
-chat, indicador de "linha atual" mais robusto, co-host, app desktop e modo
-de comparação de código.
+- **Vídeo:** cada Espectador recebe uma conexão própria do Host, então o uso de CPU e de upload do computador dele cresce com o número de espectadores. Em redes restritivas (comum em instituições) a conexão pode não fechar. Nesse caso o Espectador vê "Não foi possível receber a tela do host", com o botão "Tentar novamente", e o código e o chat continuam funcionando. Resolver isso exigiria um servidor TURN/SFU com IP público.
+- **Workspace:** só é compartilhado o que está na pasta aberta no VS Code. Ainda não dá para ocultar arquivos dentro dela.
+- **Salas em memória:** reiniciar o servidor encerra todas as salas. Para rodar com vários processos seria preciso migrar para Redis.
+- **Sem autenticação:** quem tiver o código da sala entra como Espectador.
