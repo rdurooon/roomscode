@@ -415,6 +415,9 @@
         if (window.loadInitialTabs) {
             window.loadInitialTabs(data.tabs, data.host_cursor);
         }
+        if (window.setWorkspaceTree) {
+            window.setWorkspaceTree(data.workspace_tree, data.workspace_tree_truncated);
+        }
 
         // Roda em toda reconexão do Host (F5 ou não). Não precisa reconstruir nada por espectador:
         // quem estiver esperando a tela pede a oferta de novo quando o Host voltar a compartilhar.
@@ -500,6 +503,9 @@
 
         if (window.loadInitialTabs) {
             window.loadInitialTabs(data.tabs, data.host_cursor);
+        }
+        if (window.setWorkspaceTree) {
+            window.setWorkspaceTree(data.workspace_tree, data.workspace_tree_truncated);
         }
 
         if (!roomSetupDone) {
@@ -941,4 +947,5 @@
     window.isChatMuted = () => roomState.chatMuted;
 
     initFileSync(socket);
+    if (window.initWorkspaceTree) window.initWorkspaceTree(socket);
 })();

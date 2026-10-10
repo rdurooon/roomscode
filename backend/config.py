@@ -57,6 +57,10 @@ class Config:
     MAX_PATCH_CHARS = int(os.environ.get("MAX_PATCH_CHARS", 3_000_000))
     MAX_TABS_PER_BATCH = int(os.environ.get("MAX_TABS_PER_BATCH", 50))
     MAX_CHAT_MESSAGE_CHARS = int(os.environ.get("MAX_CHAT_MESSAGE_CHARS", 4000))
+    # Árvore do workspace do Host (botão "Diretório"): só nomes, sem conteúdo.
+    MAX_TREE_NODES = int(os.environ.get("MAX_TREE_NODES", 4000))
+    MAX_TREE_DEPTH = int(os.environ.get("MAX_TREE_DEPTH", 20))
+    MAX_TREE_NAME_CHARS = int(os.environ.get("MAX_TREE_NAME_CHARS", 255))
 
     # ---- Rate limiting (janela deslizante) por evento de Socket.IO ----
     # Chat (já existia)
@@ -76,6 +80,11 @@ class Config:
     # amplificado (cada diff é reenviado a todos os espectadores da sala).
     FILE_DIFF_RATE_LIMIT_COUNT = 40
     FILE_DIFF_RATE_LIMIT_WINDOW_SECONDS = 10
+
+    # Árvore do workspace — reenviada à sala inteira a cada criação/remoção de
+    # arquivo no workspace do Host, então tem limite próprio por sid.
+    WORKSPACE_TREE_RATE_LIMIT_COUNT = 6
+    WORKSPACE_TREE_RATE_LIMIT_WINDOW_SECONDS = 10
 
     # Posição do cursor do Host — mesmo raciocínio do diff.
     CURSOR_RATE_LIMIT_COUNT = 40

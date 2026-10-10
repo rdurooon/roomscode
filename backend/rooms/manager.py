@@ -318,14 +318,25 @@ class RoomManager:
                 filename=tab.get("filename", ""),
                 language=tab.get("language", ""),
                 content=tab.get("content", ""),
+                path=tab.get("path", ""),
             )
 
         return room
 
-    def update_file(self, code: str, tab_id: str, filename: str, language: str, content: str) -> None:
+    def update_file(self, code: str, tab_id: str, filename: str, language: str, content: str, path: str = "") -> None:
         room = self._rooms.get(code.upper()) if code else None
         if room:
-            room.files[tab_id] = OpenFile(filename=filename, language=language, content=content)
+            room.files[tab_id] = OpenFile(filename=filename, language=language, content=content, path=path)
+
+    def set_workspace_tree(self, code: str, tree: List[dict], truncated: bool = False) -> Optional[Room]:
+        """Guarda a árvore do workspace do Host (já validada). Lista vazia =
+        Host sem workspace aberto."""
+        room = self._rooms.get(code.upper()) if code else None
+        if room is None:
+            return None
+        room.workspace_tree = tree
+        room.workspace_tree_truncated = truncated
+        return room
 
     def apply_new_content(self, code: str, tab_id: str, new_content: str) -> None:
         room = self._rooms.get(code.upper()) if code else None

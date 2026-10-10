@@ -725,6 +725,45 @@ body {
     flex-wrap: wrap;
     gap: 4px;
     margin-bottom: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Botão do diretório + abas, lado a lado: o botão fica fixo à esquerda e as abas quebram de linha ao lado dele. */
+.code-tab-strip {
+    display: flex;
+    align-items: flex-end; /* a base do botão fica alinhada com a base das abas */
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.directory-btn {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1b1b1b;
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px 8px 0 0;
+    padding: 6px 11px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.directory-btn[hidden] {
+    display: none;
+}
+
+.directory-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.directory-btn:hover {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
 }
 
 .code-tab {
@@ -1590,4 +1629,200 @@ button:disabled {
 .howto-card .howto-actions {
     margin-top: 16px;
     flex: 0 0 auto;
+}
+
+/* ---- Modal "Diretório do Host" (árvore do workspace) ---- */
+
+.directory-card {
+    width: min(92vw, 520px);
+    max-width: none;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 24px;
+    text-align: left;
+}
+
+.directory-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.directory-card .directory-header h2 {
+    margin: 0;
+}
+
+/* Sobrescreve o estilo genérico de .modal-card button; só o ícone, no canto superior direito. */
+.directory-card .directory-terminal-btn {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-muted);
+}
+
+.directory-card .directory-terminal-btn:hover {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.directory-terminal-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.directory-hint {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
+.directory-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    background: #1b1b1b;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 8px 4px;
+}
+
+.directory-truncated {
+    margin: 10px 0 0;
+    color: var(--text-muted);
+    font-size: 0.8em;
+}
+
+.directory-truncated[hidden] {
+    display: none;
+}
+
+.directory-card .directory-actions {
+    margin-top: 14px;
+    flex: 0 0 auto;
+}
+
+.dir-tree,
+.dir-children {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Cada nível aninhado avança um degrau, com uma guia vertical discreta. */
+.dir-children {
+    margin-left: 16px;
+    border-left: 1px solid var(--border-subtle);
+}
+
+/* Sobrescreve o estilo genérico de .modal-card button (largura total, fundo de destaque). */
+.directory-card .dir-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin: 0;
+    padding: 4px 8px;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-weight: normal;
+    font-size: 0.88em;
+    text-align: left;
+}
+
+.directory-card .dir-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.dir-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dir-icon,
+.dir-chevron {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.dir-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.dir-chevron svg {
+    width: 12px;
+    height: 12px;
+    transition: transform 0.12s ease;
+}
+
+.dir-chevron-empty svg {
+    visibility: hidden;
+}
+
+.dir-row-expanded .dir-chevron svg {
+    transform: rotate(90deg);
+}
+
+.dir-row-folder {
+    cursor: pointer;
+}
+
+/* Pasta raiz: sempre aberta, então não é clicável e fica em negrito. */
+.directory-card .dir-row-root {
+    font-weight: 600;
+    cursor: default;
+}
+
+.dir-row-folder .dir-icon {
+    color: var(--accent-color);
+}
+
+/* Pasta bloqueada por padrão: aparece, mas esmaecida e sem conteúdo. */
+.dir-row-blocked {
+    opacity: 0.55;
+}
+
+.dir-row-blocked .dir-icon {
+    color: var(--text-muted);
+}
+
+.dir-row-file .dir-icon {
+    color: var(--text-muted);
+}
+
+/* Arquivo aberto nas abas do Host: clicável e em destaque; o que está sendo exibido agora ganha a cor do site. */
+.dir-row-open {
+    cursor: pointer;
+}
+
+.dir-row-open .dir-icon {
+    color: var(--text-primary);
+}
+
+.directory-card .dir-row-active {
+    color: var(--accent-color);
+    background: var(--line-highlight-bg);
+}
+
+.dir-row-active .dir-icon {
+    color: var(--accent-color);
+}
+
+/* Arquivo que o Host não abriu: visível, mas não dá para abrir. */
+.dir-row-closed {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

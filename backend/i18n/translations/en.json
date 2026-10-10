@@ -154,6 +154,19 @@
     "spectator_t3_3_title": "If the connection drops",
     "spectator_t3_3_text": "The site tries to reconnect on its own. If it's the Host who drops, you see a waiting notice and the room only closes if they don't come back in time."
   },
+  "directory": {
+    "button_tooltip": "View the Host's workspace directory",
+    "title": "Host's directory",
+    "hint": "You can only open files that are open in the Host's tabs.",
+    "close_button": "Close",
+    "file_not_open": "File not opened by the Host.",
+    "blocked_folder": "Folder blocked by default.",
+    "terminal_tooltip": "Copy a CMD command that recreates this structure with empty files",
+    "command_copied": "Command copied! Paste it in CMD, inside the folder where you want to create the structure.",
+    "command_copied_partial": "Command copied, but {count} item(s) with names that are invalid on Windows were left out.",
+    "command_copy_failed": "Could not copy the command.",
+    "truncated_note": "Partial tree: the Host's workspace is too large to be shown in full."
+  },
   "errors": {
     "rate_limited_title": "Too many requests",
     "rate_limited_body": "We detected an unusual amount of traffic from your address. Please try again in {seconds} seconds."

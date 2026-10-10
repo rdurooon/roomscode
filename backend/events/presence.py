@@ -101,9 +101,12 @@ def register_presence_events(socketio):
                         "filename": f.filename,
                         "language": f.language,
                         "content": f.content,
+                        "path": f.path,
                     }
                     for tab_id, f in room.files.items()
                 ],
+                "workspace_tree": room.workspace_tree,
+                "workspace_tree_truncated": room.workspace_tree_truncated,
                 "host_cursor": room.host_cursor,
                 "spectators": list(room.spectators.values()),
                 "roster": room_manager.get_roster(room),
@@ -151,9 +154,12 @@ def register_presence_events(socketio):
                         "filename": f.filename,
                         "language": f.language,
                         "content": f.content,
+                        "path": f.path,
                     }
                     for tab_id, f in room.files.items()
                 ],
+                "workspace_tree": room.workspace_tree,
+                "workspace_tree_truncated": room.workspace_tree_truncated,
                 "host_cursor": room.host_cursor,
                 "spectators": list(room.spectators.values()),
                 "chat_muted": room_manager.is_chat_muted(room, request.sid),

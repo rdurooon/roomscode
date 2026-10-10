@@ -154,6 +154,19 @@
     "spectator_t3_3_title": "Si se cae la conexión",
     "spectator_t3_3_text": "El sitio intenta reconectarse solo. Si quien se cae es el Host, ves un aviso de espera y la sala solo se cierra si no vuelve a tiempo."
   },
+  "directory": {
+    "button_tooltip": "Ver el directorio del workspace del Host",
+    "title": "Directorio del Host",
+    "hint": "Solo se pueden abrir los archivos que están abiertos en las pestañas del Host.",
+    "close_button": "Cerrar",
+    "file_not_open": "Archivo no abierto por el Host.",
+    "blocked_folder": "Carpeta bloqueada por defecto.",
+    "terminal_tooltip": "Copiar un comando de CMD que recrea esta estructura con archivos vacíos",
+    "command_copied": "¡Comando copiado! Pégalo en CMD, dentro de la carpeta donde quieres crear la estructura.",
+    "command_copied_partial": "Comando copiado, pero {count} elemento(s) con nombre no válido en Windows quedaron fuera.",
+    "command_copy_failed": "No se pudo copiar el comando.",
+    "truncated_note": "Árbol parcial: el workspace del Host es demasiado grande para mostrarse completo."
+  },
   "errors": {
     "rate_limited_title": "Demasiadas solicitudes",
     "rate_limited_body": "Detectamos un volumen inusual de accesos desde tu dirección. Inténtalo de nuevo en {seconds} segundos."

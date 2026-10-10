@@ -9,6 +9,9 @@ class OpenFile:
     filename: str = ""
     language: str = ""
     content: str = ""
+    # Caminho relativo ao workspace (com o nome da pasta raiz na frente), usado
+    # para casar a aba com o arquivo correspondente na árvore do diretório.
+    path: str = ""
 
 
 @dataclass
@@ -54,3 +57,7 @@ class Room:
     # há tela pra pedir, e pra não depender de um aviso "único" que o
     # espectador pode ter perdido (ver events/signaling.py).
     screen_sharing: bool = False
+    # Árvore do workspace do Host (só nomes; lista de pastas raiz) já validada
+    # em events/file_sync.py. Lista vazia = Host fora de um workspace.
+    workspace_tree: list = field(default_factory=list)
+    workspace_tree_truncated: bool = False

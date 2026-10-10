@@ -8,6 +8,84 @@ from .rate_limit import SlidingWindowRateLimiter
 dmp = diff_match_patch()
 
 _diff_rate_limiter = SlidingWindowRateLimiter()
+_tree_rate_limiter = SlidingWindowRateLimiter()
+
+MAX_TAB_PATH_CHARS = 1000
+MAX_TREE_ROOTS = 20
+
+
+def _clean_path(value) -> str:
+    """Caminho relativo ao workspace enviado pela extensão (só serve para casar
+    a aba com o arquivo da árvore); qualquer coisa fora do formato vira vazio."""
+    if not isinstance(value, str) or len(value) > MAX_TAB_PATH_CHARS:
+        return ""
+    return value
+
+
+def _valid_tree_name(name, max_chars: int) -> bool:
+    return (
+        isinstance(name, str)
+        and name not in (".", "..")
+        and 0 < len(name) <= max_chars
+        and not any(ch in name for ch in ("/", "\\", "\x00"))
+    )
+
+
+def sanitize_workspace_tree(raw, max_nodes: int, max_depth: int, max_name_chars: int):
+    """Valida e normaliza a árvore recebida da extensão. Devolve
+    (raízes, truncada). Só entram nome, tipo e, para pastas, `blocked` ou
+    `children`: qualquer outro campo é descartado, e nenhum conteúdo de
+    arquivo passa por aqui. Nós inválidos são ignorados; passar de max_nodes
+    ou max_depth corta o resto e marca a árvore como truncada."""
+    state = {"count": 0, "truncated": False}
+
+    def walk(node, depth, is_root):
+        if not isinstance(node, dict):
+            return None
+        name = node.get("name")
+        if not _valid_tree_name(name, max_name_chars):
+            return None
+        if state["count"] >= max_nodes:
+            state["truncated"] = True
+            return None
+        state["count"] += 1
+
+        is_dir = is_root or node.get("type") == "dir"
+        if not is_dir:
+            return {"name": name, "type": "file"}
+
+        result = {"name": name, "type": "dir"}
+        if node.get("blocked") is True and not is_root:
+            result["blocked"] = True
+            return result
+
+        children = node.get("children", [])
+        if not isinstance(children, list):
+            children = []
+        if depth >= max_depth:
+            if children:
+                state["truncated"] = True
+            result["children"] = []
+            return result
+
+        clean_children = []
+        for child in children:
+            clean = walk(child, depth + 1, False)
+            if clean is not None:
+                clean_children.append(clean)
+            if state["truncated"] and state["count"] >= max_nodes:
+                break
+        result["children"] = clean_children
+        return result
+
+    roots = []
+    for root in raw[:MAX_TREE_ROOTS]:
+        clean = walk(root, 1, True)
+        if clean is not None:
+            roots.append(clean)
+    if len(raw) > MAX_TREE_ROOTS:
+        state["truncated"] = True
+    return roots, state["truncated"]
 
 
 def register_file_sync_events(socketio):
@@ -39,6 +117,9 @@ def register_file_sync_events(socketio):
             if isinstance(tab, dict) and len(str(tab.get("content", ""))) <= max_content
         ]
 
+        for tab in safe_tabs:
+            tab["path"] = _clean_path(tab.get("path", ""))
+
         room = room_manager.set_tabs(code, safe_tabs)
         if room is None:
             return
@@ -52,6 +133,7 @@ def register_file_sync_events(socketio):
                         "filename": tab.get("filename", ""),
                         "language": tab.get("language", ""),
                         "content": tab.get("content", ""),
+                        "path": _clean_path(tab.get("path", "")),
                     }
                     for tab in safe_tabs
                 ]
@@ -74,6 +156,7 @@ def register_file_sync_events(socketio):
         filename = data.get("filename", "")
         language = data.get("language", "")
         content = data.get("content", "")
+        path = _clean_path(data.get("path", ""))
 
         if len(str(content)) > current_app.config["MAX_FILE_CONTENT_CHARS"]:
             # Payload grande demais pra replicar pra sala inteira — descarta
@@ -86,11 +169,11 @@ def register_file_sync_events(socketio):
         if room is None or not tab_id:
             return
 
-        room_manager.update_file(code, tab_id, filename, language, content)
+        room_manager.update_file(code, tab_id, filename, language, content, path)
 
         emit(
             "file_full_content",
-            {"tabId": tab_id, "filename": filename, "language": language, "content": content},
+            {"tabId": tab_id, "filename": filename, "language": language, "content": content, "path": path},
             room=room.code,
             include_self=False,
         )
@@ -140,6 +223,49 @@ def register_file_sync_events(socketio):
         emit(
             "file_diff",
             {"tabId": tab_id, "patch": patch_text},
+            room=room.code,
+            include_self=False,
+        )
+
+    @socketio.on("workspace_tree")
+    def handle_workspace_tree(data):
+        """A extensão manda a árvore de pastas/arquivos (só nomes) do workspace
+        do Host, para o botão "Diretório" dos espectadores. Lista vazia ou
+        ausente = Host fora de um workspace (o botão some).
+
+        Só é aceito de canal confiável da sala, igual aos eventos de arquivo."""
+        data = data or {}
+        code = data.get("room_code", "")
+
+        if not room_manager.is_trusted_sender(code, request.sid):
+            return
+
+        if _tree_rate_limiter.is_limited(
+            request.sid,
+            current_app.config["WORKSPACE_TREE_RATE_LIMIT_COUNT"],
+            current_app.config["WORKSPACE_TREE_RATE_LIMIT_WINDOW_SECONDS"],
+        ):
+            return
+
+        raw = data.get("tree") or []
+        if not isinstance(raw, list):
+            return
+
+        tree, truncated = sanitize_workspace_tree(
+            raw,
+            current_app.config["MAX_TREE_NODES"],
+            current_app.config["MAX_TREE_DEPTH"],
+            current_app.config["MAX_TREE_NAME_CHARS"],
+        )
+        truncated = truncated or data.get("truncated") is True
+
+        room = room_manager.set_workspace_tree(code, tree, truncated)
+        if room is None:
+            return
+
+        emit(
+            "workspace_tree",
+            {"tree": tree, "truncated": truncated},
             room=room.code,
             include_self=False,
         )

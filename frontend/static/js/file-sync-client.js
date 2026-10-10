@@ -1,5 +1,5 @@
 // Estado de todas as abas abertas no VS Code do Host, espelhado aqui.
-let openTabs = {};       // tabId -> { filename, language, content }
+let openTabs = {};       // tabId -> { filename, language, content, path }
 let tabOrder = [];       // ordem de exibição das abas
 let activeViewTabId = null; // qual aba o usuário (deste navegador) está vendo agora
 let hostCursorByTab = {};   // tabId -> linha atual do host nessa aba
@@ -194,6 +194,9 @@ function renderTabBar() {
         btn.addEventListener('click', () => switchToTab(tabId));
         bar.appendChild(btn);
     });
+
+    // Quem mostra o diretório do workspace precisa saber quais arquivos estão abertos/ativos.
+    if (window.onTabsRendered) window.onTabsRendered();
 }
 
 function switchToTab(tabId, isAutomatic) {
@@ -237,11 +240,11 @@ function renderActiveTabContent() {
     if (window.setCodeActive) window.setCodeActive(true);
 }
 
-function upsertTab(tabId, filename, language, content) {
+function upsertTab(tabId, filename, language, content, path) {
     if (!tabId) return;
 
     const isNew = !(tabId in openTabs);
-    openTabs[tabId] = { filename, language, content };
+    openTabs[tabId] = { filename, language, content, path: path || '' };
     if (isNew) {
         tabOrder.push(tabId);
     }
@@ -270,6 +273,7 @@ function initFileSync(socket) {
                 filename: tab.filename,
                 language: tab.language,
                 content: tab.content,
+                path: tab.path || '',
             };
             newOrder.push(tab.tabId);
         });
@@ -286,7 +290,7 @@ function initFileSync(socket) {
     });
 
     socket.on('file_full_content', (data) => {
-        upsertTab(data.tabId, data.filename, data.language, data.content);
+        upsertTab(data.tabId, data.filename, data.language, data.content, data.path);
     });
 
     socket.on('file_diff', (data) => {
@@ -347,6 +351,23 @@ window.getFileLinesForFilename = (filename) => {
 
 window.goToCodeLine = goToCodeLine;
 
+// ---- Usadas pelo diretório do workspace (directory-tree.js) ----
+
+/** Id da aba aberta pelo Host para o arquivo com esse caminho no workspace, ou null se não está aberto. */
+window.getOpenTabIdByPath = (path) => {
+    if (!path) return null;
+    return tabOrder.find((id) => openTabs[id] && openTabs[id].path === path) || null;
+};
+
+window.getActiveTabPath = () => (openTabs[activeViewTabId] ? openTabs[activeViewTabId].path : null);
+
+/** Leva o usuário à aba (mesma regra de um clique na aba: com "Seguir o Host" ligado, ele desliga). */
+window.openTabFromDirectory = (tabId) => {
+    if (!openTabs[tabId]) return false;
+    if (tabId !== activeViewTabId) switchToTab(tabId);
+    return true;
+};
+
 window.getActiveTabFilename = () => (openTabs[activeViewTabId] ? openTabs[activeViewTabId].filename : null);
 
 // ---- Exposto apenas para testes automatizados (jsdom) ----
@@ -373,7 +394,7 @@ window.loadInitialTabs = (tabs, hostCursor) => {
     tabOrder = [];
     openTabs = {};
     (tabs || []).forEach((tab) => {
-        openTabs[tab.tabId] = { filename: tab.filename, language: tab.language, content: tab.content };
+        openTabs[tab.tabId] = { filename: tab.filename, language: tab.language, content: tab.content, path: tab.path || '' };
         tabOrder.push(tab.tabId);
     });
     hostCursorByTab = hostCursor || {};
