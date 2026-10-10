@@ -16,7 +16,7 @@
 
         <div class="howto-body">
             <div class="howto-panel" role="tabpanel" id="howto-panel-host" aria-labelledby="howto-tab-host">
-                {% for topic, subs in [(1, [1]), (2, [1, 2, 3]), (3, [1])] %}
+                {% for topic, subs in [(1, [1]), (2, [1, 2, 3, 4]), (3, [1])] %}
                 <section class="howto-topic">
                     <h3 class="howto-topic-title"><span class="howto-topic-num">{{ topic }}</span><span data-i18n="howto.host_t{{ topic }}_title">{{ t('howto.host_t' ~ topic ~ '_title') }}</span></h3>
                     <p class="howto-step-text" data-i18n-html="howto.host_t{{ topic }}_text">{{ t('howto.host_t' ~ topic ~ '_text') | safe }}</p>
@@ -32,7 +32,7 @@
                 {% endfor %}
             </div>
             <div class="howto-panel" role="tabpanel" id="howto-panel-spectator" aria-labelledby="howto-tab-spectator" hidden>
-                {% for topic, subs in [(1, [1, 2]), (2, [1, 2]), (3, [1, 2, 3])] %}
+                {% for topic, subs in [(1, [1, 2]), (2, [1, 2, 3]), (3, [1, 2, 3])] %}
                 <section class="howto-topic">
                     <h3 class="howto-topic-title"><span class="howto-topic-num">{{ topic }}</span><span data-i18n="howto.spectator_t{{ topic }}_title">{{ t('howto.spectator_t' ~ topic ~ '_title') }}</span></h3>
                     <p class="howto-step-text" data-i18n-html="howto.spectator_t{{ topic }}_text">{{ t('howto.spectator_t' ~ topic ~ '_text') | safe }}</p>
