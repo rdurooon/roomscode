@@ -65,10 +65,15 @@
     "chat_muted_placeholder": "The host has restricted your chat.",
     "mod_mute_tooltip": "Restrict this viewer's chat",
     "mod_unmute_tooltip": "Allow this viewer's chat again",
-    "mod_kick_tooltip": "Kick from the room"
+    "mod_kick_tooltip": "Kick from the room",
+    "name_too_short_error": "Invalid name: use at least 4 characters.",
+    "host_here_tooltip": "The Host is on this tab",
+    "mod_mute_all_tooltip": "Block everyone's chat",
+    "mod_unmute_all_tooltip": "Allow everyone's chat",
+    "chat_all_muted_placeholder": "The host has blocked everyone's chat."
   },
   "chat": {
-    "autocomplete_code_hint": "Quotes a line from an open file",
+    "autocomplete_code_hint": "Quotes a line (or a range, e.g. 1~12) from an open file",
     "autocomplete_mention_hint": "Mentions someone in the room",
     "autocomplete_code_template": "code(number, file)",
     "autocomplete_mention_template": "user(name)",
@@ -78,14 +83,16 @@
     "chip_file_not_found": "{filename}: file not found",
     "chip_line_not_found": "{filename} L{line}: line doesn't exist",
     "chip_goto_tooltip": "Go to this line",
-    "goto_unavailable": "Couldn't go to {filename} L{line}: the file was closed or the line no longer exists."
+    "goto_unavailable": "Couldn't go to {filename} L{line}: the file was closed or the line no longer exists.",
+    "autocomplete_host_hint": "Mentions the room's host"
   },
   "file_sync": {
     "diff_apply_failed": "Couldn't apply the code update (library didn't load).",
     "cite_line_button": "Quote line {line} in chat",
     "file_code_copied": "Code from {filename} copied!",
     "file_downloaded": "{filename} downloaded!",
-    "default_download_filename": "file.txt"
+    "default_download_filename": "file.txt",
+    "cite_lines_button": "Quote lines {start}~{end} in chat"
   },
   "socket": {
     "host_reconnected": "The host reconnected.",
@@ -109,7 +116,15 @@
     "chat_muted": "The host has restricted your chat: you can't send messages.",
     "chat_muted_by_host": "The host has restricted your chat. You can still copy and download the code.",
     "chat_unmuted_by_host": "The host has allowed your chat again.",
-    "chat_restricted_on_join": "Your chat is restricted by the host. You can still copy and download the code."
+    "chat_restricted_on_join": "Your chat is restricted by the host. You can still copy and download the code.",
+    "name_too_short": "Invalid name: use at least {min_chars} characters.",
+    "name_taken": "That name is already in use in the room. Pick another one: at least {min_chars} characters and different from the names already in the room.",
+    "name_reserved": "The name \"host\" is reserved. Pick another one: at least {min_chars} characters and different from the names already in the room.",
+    "chat_all_muted": "The host has blocked everyone's chat: you can't send messages.",
+    "chat_all_muted_by_host": "The host has blocked everyone's chat. You can still copy and download the code.",
+    "chat_all_unmuted_by_host": "The host has allowed everyone's chat again.",
+    "chat_all_muted_on_join": "The chat is blocked by the host. You can still copy and download the code.",
+    "session_replaced": "You joined this room from another tab or window."
   },
   "howto": {
     "title": "How to use RoomsCode",
@@ -126,7 +141,7 @@
     "host_t2_1_title": "Share your screen",
     "host_t2_1_text": "Click <strong>Share screen</strong> and choose what to show. To finish, click <strong>Stop sharing</strong>.",
     "host_t2_2_title": "Share your code (connect VS Code)",
-    "host_t2_2_text": "Install the extension (<strong>Download extension</strong> button on the home screen). In VS Code, click <strong>RoomsCode</strong> in the status bar and paste the code copied with <strong>Copy extension code</strong> — never share that code with viewers. Your open tabs then appear for the class, with your cursor's line highlighted.",
+    "host_t2_2_text": "Install the extension (<strong>Download extension</strong> button on the home screen). In VS Code, click <strong>RoomsCode</strong> in the status bar and paste the code copied with <strong>Copy extension code</strong> — never share that code with viewers. Your open tabs then appear for the class: the tab you are on gets a person icon and your cursor's line is highlighted.",
     "host_t2_3_title": "Show the project directory",
     "host_t2_3_text": "With a <strong>folder open</strong> in VS Code (<strong>File → Open Folder</strong>) and the extension connected, viewers get a folder button next to the tabs. It opens the full tree of your project, names only, but only the files that are open in your tabs can be opened. Folders such as <code>node_modules</code> and <code>.git</code> appear blocked, with no contents. Note: the names of all files are visible, including sensitive ones (such as <code>.env</code>); a file's contents are only shared if you open it. With no folder open (just a single loose file), the button does not appear. If it does not show up, check that the extension is up to date.",
     "host_t2_4_title": "Manage your viewers",
@@ -134,7 +149,7 @@
     "host_t3_title": "Other features",
     "host_t3_text": "Tools that help you talk with the class during the lesson.",
     "host_t3_1_title": "Chat and code quotes",
-    "host_t3_1_text": "In the chat, <code>@name</code> or <code>!user(name)</code> mentions someone, and <code>!code(line, file)</code> quotes a line. Clicking a quote takes the person straight to that line of the file.",
+    "host_t3_1_text": "In the chat, <code>@name</code> or <code>!user(name)</code> mentions someone, and <code>!code(line, file)</code> quotes a line — or a range, like <code>!code(1~12, file)</code>. Clicking a quote takes the person straight to the first quoted line. Whoever is mentioned hears a sound alert; when it's you, the extension also shows a VS Code notification for 5 seconds (keep the extension up to date).",
     "spectator_t1_title": "Join the room",
     "spectator_t1_text": "To watch, you need the room code, which the Host gives to the class.",
     "spectator_t1_1_title": "With the code",
@@ -146,17 +161,23 @@
     "spectator_t2_1_title": "Follow the screen",
     "spectator_t2_1_text": "The Host's screen appears on the left. With the mouse over it, use <strong>Fullscreen</strong> or <strong>Hide screen</strong> (to see only the code). Drag the divider between the panels to resize them.",
     "spectator_t2_2_title": "Browse the code",
-    "spectator_t2_2_text": "Each tab is a file the Host has open; click to switch. The line the Host is on is highlighted, and <strong>Follow the Host</strong> follows their tab and line automatically. Scroll the code freely and use the header buttons to copy or download the current file.",
+    "spectator_t2_2_text": "Each tab is a file the Host has open; click to switch. The tab the Host is on has a <strong>person icon</strong> and their line is highlighted, even without <strong>Follow the Host</strong>; with that option on, you follow their tab and line automatically. Scroll the code freely and use the header buttons to copy or download the current file.",
     "spectator_t2_3_title": "See the project directory",
     "spectator_t2_3_text": "When the Host has a folder open in VS Code, a <strong>folder button</strong> appears next to the tabs. It opens the project tree: click a folder to open or close it (all start closed). You can only open files that the Host has open in their tabs; click them to jump straight to the tab. The others warn that the Host has not opened them, and folders with a padlock (such as <code>node_modules</code>) are blocked by default. The <strong>terminal</strong> button, in the corner of the directory, copies a command for the <strong>Windows CMD</strong> that recreates the folders and (empty) files wherever you paste it; anything that already exists is not overwritten.",
     "spectator_t3_title": "Other features",
     "spectator_t3_text": "Tools to take part in the lesson and deal with the unexpected.",
     "spectator_t3_1_title": "Chat and code quotes",
-    "spectator_t3_1_text": "In the chat, <code>@name</code> or <code>!user(name)</code> mentions someone. To quote a line, use <code>!code(line, file)</code> or select a piece of code and click <strong>Quote line</strong>. Click a quote in the chat to jump straight to that line.",
-    "spectator_t3_2_title": "If the Host restricts your chat",
-    "spectator_t3_2_text": "You can still see everything and copy and download the code, but you can't send messages, mentions or quotes until the Host allows it again.",
+    "spectator_t3_1_text": "In the chat, <code>@name</code> or <code>!user(name)</code> mentions someone, and <code>@host</code> calls the Host without typing their name; whoever is mentioned hears a sound alert. To quote code, use <code>!code(line, file)</code> (or <code>!code(1~12, file)</code> for a range) or select one or more lines in the code and click <strong>Quote line</strong>. Click a quote in the chat to jump straight to the first quoted line.",
+    "spectator_t3_2_title": "If the Host restricts or blocks the chat",
+    "spectator_t3_2_text": "You can still see everything and copy and download the code, but you can't send messages, mentions or quotes until the Host allows it again. This applies both to a restriction on your chat alone and to blocking everyone's chat.",
     "spectator_t3_3_title": "If the connection drops",
-    "spectator_t3_3_text": "The site tries to reconnect on its own. If it's the Host who drops, you see a waiting notice and the room only closes if they don't come back in time."
+    "spectator_t3_3_text": "The site tries to reconnect on its own. If it's the Host who drops, you see a waiting notice and the room only closes if they don't come back in time.",
+    "host_t1_2_title": "Choose your name",
+    "host_t1_2_text": "Your name must have <strong>at least 4 characters</strong>. Viewers use <code>@host</code> to call you without typing your name, so they can't pick the name <code>host</code>.",
+    "host_t2_5_title": "Block everyone's chat",
+    "host_t2_5_text": "At the top of the viewers panel there is a chat bubble button, just like the one in the individual menu. Click it to <strong>block everyone's chat</strong> at once (the bubble turns the site's color and gets cut through); click again to allow it. The block also applies to anyone who joins later and doesn't undo individual restrictions: viewers restricted one by one stay restricted until you allow them.",
+    "spectator_t1_3_title": "Choose your name",
+    "spectator_t1_3_text": "Your name must have <strong>at least 4 characters</strong> and can't be the same as anyone else in the room (including the Host, ignoring upper/lower case). The name <code>host</code> is reserved. If the name isn't accepted, a message explains why."
   },
   "directory": {
     "button_tooltip": "View the Host's workspace directory",

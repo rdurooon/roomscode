@@ -37,6 +37,23 @@ def register_moderation_events(socketio):
         emit("chat_muted_changed", {"muted": muted}, room=target_sid)
         emit_roster_to_host(room)
 
+    @socketio.on("host_set_chat_all_muted")
+    def handle_host_set_chat_all_muted(data):
+        """Bloqueia/libera o chat de todos os espectadores de uma vez (só o Host da sala). É um estado da sala,
+        separado da restrição individual: liberar o chat de todos não libera quem foi restrito um a um."""
+        data = data or {}
+        code = data.get("room_code", "")
+        room = room_manager.get_room(code if isinstance(code, str) else "")
+        if room is None or room.host_sid != request.sid:
+            return
+
+        muted = data.get("muted")
+        if not isinstance(muted, bool):
+            return
+
+        room_manager.set_chat_all_muted(room.code, muted)
+        emit("chat_all_muted_changed", {"muted": muted}, room=room.code)
+
     @socketio.on("host_kick_spectator")
     def handle_host_kick_spectator(data):
         room, target_sid = _host_room_and_target(data)

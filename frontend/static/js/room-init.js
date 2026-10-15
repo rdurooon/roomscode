@@ -17,8 +17,15 @@
         name: '',
         hostSid: null,
         screenSharing: false,
+        // chatMuted = efetivo (restrição individual OU bloqueio do chat de todos); os dois motivos ficam separados
+        // porque o Host libera cada um de um jeito e as mensagens/placeholders são diferentes.
         chatMuted: false,
+        chatMutedSelf: false,
+        chatMutedAll: false,
     };
+
+    // Tamanho mínimo do nome (mesmo valor de MIN_NAME_CHARS em backend/config.py; o servidor é quem decide de fato).
+    const MIN_NAME_CHARS = 4;
 
     // ---- Persistência de sessão (sessionStorage) pra sobreviver a quedas
     // de conexão e recarregamentos de página (F5) sem perder a sala ----
@@ -333,6 +340,10 @@
             errorEl.textContent = window.t('room.name_required_error');
             return;
         }
+        if (name.length < MIN_NAME_CHARS) {
+            errorEl.textContent = window.t('room.name_too_short_error');
+            return;
+        }
         roomState.name = name;
         errorEl.textContent = '';
 
@@ -406,6 +417,7 @@
         updateParticipantNames();
         updateSpectatorList(data.spectators || []);
         updateSpectatorRoster(data.roster || []);
+        setAllMuteButton(!!data.chat_all_muted);
         window.setExtensionConnected(!!data.extension_connected);
 
         // Sempre seguro chamar de novo (só recalcula o painel a partir do
@@ -413,7 +425,7 @@
         // listener nenhum, então não duplica nada numa reconexão que não
         // passou por F5.
         if (window.loadInitialTabs) {
-            window.loadInitialTabs(data.tabs, data.host_cursor);
+            window.loadInitialTabs(data.tabs, data.host_cursor, data.host_active_tab);
         }
         if (window.setWorkspaceTree) {
             window.setWorkspaceTree(data.workspace_tree, data.workspace_tree_truncated);
@@ -476,7 +488,7 @@
         // existe mais mesmo), não faz sentido manter o nome/código antigo
         // guardado pra tentar de novo pra sempre a cada reconexão futura.
         clearSpectatorSession();
-        const message = window.t('socket.' + data.code.toLowerCase());
+        const message = window.t('socket.' + data.code.toLowerCase(), { min_chars: data.min_chars });
         errorEl.textContent = message;
         if (window.showToast) {
             window.showToast(message, 'error');
@@ -493,8 +505,9 @@
         // Quem volta depois de ser expulso (ou restrito) já entra com o chat restrito.
         const wasMuted = roomState.chatMuted;
         setChatMuted(!!data.chat_muted);
+        setChatAllMuted(!!data.chat_all_muted);
         if (roomState.chatMuted && !wasMuted && window.showToast) {
-            window.showToast(window.t('socket.chat_restricted_on_join'), 'error');
+            window.showToast(window.t(roomState.chatMutedAll ? 'socket.chat_all_muted_on_join' : 'socket.chat_restricted_on_join'), 'error');
         }
 
         hostDisplayName = data.host_name || null;
@@ -502,7 +515,7 @@
         showSpectatorRoomCode();
 
         if (window.loadInitialTabs) {
-            window.loadInitialTabs(data.tabs, data.host_cursor);
+            window.loadInitialTabs(data.tabs, data.host_cursor, data.host_active_tab);
         }
         if (window.setWorkspaceTree) {
             window.setWorkspaceTree(data.workspace_tree, data.workspace_tree_truncated);
@@ -580,7 +593,7 @@
     socket.on('chat_muted_changed', (data) => {
         if (roomState.isHost) return;
         const muted = !!(data && data.muted);
-        const changed = muted !== roomState.chatMuted;
+        const changed = muted !== roomState.chatMutedSelf;
         setChatMuted(muted);
         if (changed && window.showToast) {
             window.showToast(
@@ -588,6 +601,41 @@
                 muted ? 'error' : 'success'
             );
         }
+    });
+
+    // O Host bloqueou/liberou o chat de TODOS os espectadores. O Host só atualiza o próprio botão; cada
+    // espectador trava/destrava o campo de mensagem e recebe um aviso.
+    socket.on('chat_all_muted_changed', (data) => {
+        const muted = !!(data && data.muted);
+        if (roomState.isHost) {
+            setAllMuteButton(muted);
+            return;
+        }
+        const changed = muted !== roomState.chatMutedAll;
+        setChatAllMuted(muted);
+        if (changed && window.showToast) {
+            window.showToast(
+                window.t(muted ? 'socket.chat_all_muted_by_host' : 'socket.chat_all_unmuted_by_host'),
+                muted ? 'error' : 'success'
+            );
+        }
+    });
+
+    // Espectador: a mesma pessoa entrou de novo (outra aba/janela) com o mesmo nome. Esta aba sai da sala, senão
+    // ficaria aberta sem estar mais registrada nela.
+    socket.on('session_replaced', (data) => {
+        if (roomState.isHost) return;
+        hideReconnectBanner();
+        clearSpectatorSession();
+        const video = document.getElementById('video-display');
+        if (video) video.srcObject = null;
+        if (window.showToast) {
+            window.showToast(window.t('socket.' + String((data && data.code) || 'SESSION_REPLACED').toLowerCase()), 'error');
+        }
+        socket.disconnect();
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1800);
     });
 
     // Espectador: o Host expulsou da sala. Ele pode voltar quando quiser (já
@@ -776,6 +824,8 @@
         // diretamente na hora de ser chamada.
     }
 
+    window.hasHost = () => !!hostDisplayName;
+
     window.getParticipantNames = () => {
         const names = [];
         if (hostDisplayName) names.push(hostDisplayName);
@@ -929,22 +979,51 @@
         if (spectatorsPanel) spectatorsPanel.addEventListener('scroll', closeSpectatorMenu);
     }
 
-    // ---- Espectador: chat restrito pelo Host. O servidor é quem barra as
-    // mensagens (ver chat.py); isto só deixa a interface coerente. Copiar e
-    // baixar o código continuam liberados. ----
-    function setChatMuted(muted) {
-        roomState.chatMuted = muted;
+    // ---- Espectador: chat restrito pelo Host (só o dele) ou bloqueado para todos. O servidor é quem barra as
+    // mensagens (ver chat.py); isto só deixa a interface coerente. Copiar e baixar o código continuam liberados. ----
+    function applyChatMuteState() {
+        roomState.chatMuted = roomState.chatMutedSelf || roomState.chatMutedAll;
         const form = document.getElementById('chat-form');
         const input = document.getElementById('chat-input');
         const sendBtn = form ? form.querySelector('button[type="submit"]') : null;
         if (!form || !input) return;
-        form.classList.toggle('chat-muted', muted);
-        input.disabled = muted;
-        if (sendBtn) sendBtn.disabled = muted;
-        input.placeholder = window.t(muted ? 'room.chat_muted_placeholder' : 'room.chat_input_placeholder');
-        if (muted) input.value = '';
+        form.classList.toggle('chat-muted', roomState.chatMuted);
+        input.disabled = roomState.chatMuted;
+        if (sendBtn) sendBtn.disabled = roomState.chatMuted;
+        let placeholderKey = 'room.chat_input_placeholder';
+        if (roomState.chatMutedAll) placeholderKey = 'room.chat_all_muted_placeholder';
+        else if (roomState.chatMutedSelf) placeholderKey = 'room.chat_muted_placeholder';
+        input.placeholder = window.t(placeholderKey);
+        if (roomState.chatMuted) input.value = '';
+    }
+    function setChatMuted(muted) {
+        roomState.chatMutedSelf = muted;
+        applyChatMuteState();
+    }
+    function setChatAllMuted(muted) {
+        roomState.chatMutedAll = muted;
+        applyChatMuteState();
     }
     window.isChatMuted = () => roomState.chatMuted;
+
+    // ---- Host: botão do topo do painel de espectadores que bloqueia/libera o chat de todos. O visual "ativo"
+    // (cor do site + balão cortado) só muda quando o servidor confirma (chat_all_muted_changed). ----
+    const muteAllBtn = document.getElementById('mute-all-btn');
+    function setAllMuteButton(muted) {
+        roomState.chatMutedAll = muted;
+        if (!muteAllBtn) return;
+        const label = window.t(muted ? 'room.mod_unmute_all_tooltip' : 'room.mod_mute_all_tooltip');
+        muteAllBtn.classList.toggle('is-active', muted);
+        muteAllBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+        muteAllBtn.title = label;
+        muteAllBtn.setAttribute('aria-label', label);
+    }
+    if (muteAllBtn) {
+        muteAllBtn.addEventListener('click', () => {
+            if (!roomState.code) return;
+            socket.emit('host_set_chat_all_muted', { room_code: roomState.code, muted: !roomState.chatMutedAll });
+        });
+    }
 
     initFileSync(socket);
     if (window.initWorkspaceTree) window.initWorkspaceTree(socket);

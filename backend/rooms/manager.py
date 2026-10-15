@@ -124,6 +124,61 @@ class RoomManager:
             self._sid_to_code[sid] = room.code
             return room
 
+    @staticmethod
+    def name_error(name, min_chars: int, reserved=()) -> Optional[str]:
+        """Código de erro (chave socket.<código em minúsculo> nas traduções) se o nome não for aceito, ou None."""
+        if not isinstance(name, str) or len(name.strip()) < min_chars:
+            return "NAME_TOO_SHORT"
+        if RoomManager._name_key(name) in {RoomManager._name_key(r) for r in reserved}:
+            return "NAME_RESERVED"
+        return None
+
+    def join_spectator(
+        self, code: str, sid: str, name, client_id: str = "", min_chars: int = 4, reserved=()
+    ) -> Tuple[Optional[Room], Optional[str], Optional[str]]:
+        """Entrada de espectador com validação do nome (tamanho mínimo, nome reservado e nome já usado na sala,
+        incluindo o do Host; sem diferenciar maiúsculas de minúsculas).
+
+        Devolve (sala, erro, sid_substituído). Se o nome já estiver com um espectador de MESMO id de navegador,
+        é a mesma pessoa voltando (F5 ou queda) antes de o servidor notar que o socket antigo caiu: a entrada
+        antiga é substituída e seu sid volta em sid_substituído, para quem chamou avisar a sala.
+        """
+        with self._lock:
+            room = self._rooms.get(code.upper()) if isinstance(code, str) and code else None
+            if room is None:
+                return None, "ROOM_NOT_FOUND", None
+
+            error = self.name_error(name, min_chars, reserved)
+            if error:
+                return None, error, None
+
+            name = name.strip()
+            key = self._name_key(name)
+            if key == self._name_key(room.host_name):
+                return None, "NAME_TAKEN", None
+
+            replaced_sid = None
+            for other_sid, other_name in room.spectators.items():
+                if other_sid == sid or self._name_key(other_name) != key:
+                    continue
+                if client_id and room.spectator_client_ids.get(other_sid, "") == client_id:
+                    replaced_sid = other_sid
+                    break
+                return None, "NAME_TAKEN", None
+
+            if replaced_sid is not None:
+                room.spectators.pop(replaced_sid, None)
+                room.spectator_client_ids.pop(replaced_sid, None)
+                room.muted_sids.discard(replaced_sid)
+                self._sid_to_code.pop(replaced_sid, None)
+
+            room.spectators[sid] = name
+            room.spectator_client_ids[sid] = client_id
+            if (client_id and client_id in room.restricted_client_ids) or key in room.restricted_names:
+                room.muted_sids.add(sid)
+            self._sid_to_code[sid] = room.code
+            return room, None, replaced_sid
+
     def is_chat_muted(self, room: Room, sid: str) -> bool:
         return sid in room.muted_sids
 
@@ -159,6 +214,16 @@ class RoomManager:
             else:
                 room.muted_sids.discard(sid)
                 self._release_identity(room, sid)
+            return room
+
+    def set_chat_all_muted(self, code: str, muted: bool) -> Optional[Room]:
+        """Bloqueia/libera o chat de TODOS os espectadores da sala (vale também para quem entrar depois).
+        Não mexe nas restrições individuais: ao liberar, quem estava restrito continua restrito."""
+        with self._lock:
+            room = self._rooms.get(code.upper()) if code else None
+            if room is None:
+                return None
+            room.chat_all_muted = muted
             return room
 
     def kick_spectator(self, code: str, sid: str) -> Optional[Room]:
@@ -310,6 +375,9 @@ class RoomManager:
                 del room.files[tab_id]
                 room.host_cursor.pop(tab_id, None)
 
+        if room.host_active_tab and room.host_active_tab not in new_ids:
+            room.host_active_tab = ""
+
         for tab in tabs:
             tab_id = tab.get("tabId")
             if not tab_id:
@@ -347,6 +415,8 @@ class RoomManager:
         room = self._rooms.get(code.upper()) if code else None
         if room:
             room.host_cursor[tab_id] = line
+            # O cursor sempre vem do editor ativo do Host, então a aba dele é a aba em que o Host está.
+            room.host_active_tab = tab_id
 
 
 # Instância única compartilhada por toda a aplicação.

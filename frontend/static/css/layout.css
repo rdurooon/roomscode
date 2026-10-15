@@ -1826,3 +1826,100 @@ button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ---- Rodada de QoL: Host na aba, linha do Host, bloqueio geral do chat ---- */
+
+/* Aba: nome do arquivo + (só na aba em que o Host está) o ícone de pessoa, no lado direito dentro da aba. */
+.code-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.code-tab-host-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--accent-color);
+}
+
+.code-tab-host-icon svg {
+    width: 13px;
+    height: 13px;
+    display: block;
+}
+
+/* Linha do Host: o tom já existia; agora também ganha uma barrinha na cor do site junto ao número (a coluna dos
+   números é meio apagada, então ela volta a ficar nítida nessa linha). Discreto, mas dá pra ver de relance. */
+.code-panel td.hljs-ln-numbers.host-line-highlight {
+    opacity: 0.95;
+    box-shadow: inset 3px 0 0 var(--accent-color);
+}
+
+.code-panel td.hljs-ln-numbers.host-line-highlight .hljs-ln-n::before {
+    color: var(--accent-color);
+}
+
+/* Painel de espectadores: título à esquerda e, só no Host, o botão de bloquear o chat de todos no canto. */
+.spectators-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.spectators-header h3 {
+    margin: 0;
+}
+
+/* Mesmo visual do botão de balão do menu individual: ícone cinza, cor do site no hover e quando ativo (+ corte). */
+.spectators-mute-all-btn {
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 999px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.spectators-mute-all-btn:hover,
+.spectators-mute-all-btn:focus-visible {
+    color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.08);
+    outline: none;
+}
+
+.spectators-mute-all-btn svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+.spectators-mute-all-btn.is-active {
+    color: var(--accent-color);
+}
+
+.mute-all-slash {
+    display: none;
+}
+
+.is-active .mute-all-slash {
+    display: inline;
+}
+
+.is-active .mute-all-bubble {
+    mask: url(#mute-all-slash-mask);
+}
+
+.mute-all-slash-line {
+    stroke: currentColor;
+    stroke-width: 9;
+    stroke-linecap: round;
+}

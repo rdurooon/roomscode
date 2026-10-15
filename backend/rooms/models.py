@@ -47,6 +47,10 @@ class Room:
     restricted_names: Set[str] = field(default_factory=set)
     files: Dict[str, OpenFile] = field(default_factory=dict)  # tab_id -> OpenFile
     host_cursor: Dict[str, int] = field(default_factory=dict)  # tab_id -> linha atual do host
+    # Aba em que o Host está agora (a do último cursor enviado); "" se ainda não se sabe.
+    host_active_tab: str = ""
+    # True enquanto o Host bloqueia o chat de TODOS os espectadores. Independe da restrição individual (muted_sids).
+    chat_all_muted: bool = False
     # Timestamp (time.monotonic()) de quando o socket do Host caiu, ou None
     # se o Host está conectado agora. Sala em "estado de graça" = host_sid
     # is None e host_disconnected_at is not None; nesse estado a sala

@@ -65,10 +65,15 @@
     "chat_muted_placeholder": "El host restringió tu chat.",
     "mod_mute_tooltip": "Restringir el chat de este espectador",
     "mod_unmute_tooltip": "Volver a permitir el chat de este espectador",
-    "mod_kick_tooltip": "Expulsar de la sala"
+    "mod_kick_tooltip": "Expulsar de la sala",
+    "name_too_short_error": "Nombre no válido: usa al menos 4 caracteres.",
+    "host_here_tooltip": "El Host está en esta pestaña",
+    "mod_mute_all_tooltip": "Bloquear el chat de todos los espectadores",
+    "mod_unmute_all_tooltip": "Permitir el chat de todos los espectadores",
+    "chat_all_muted_placeholder": "El host bloqueó el chat de todos."
   },
   "chat": {
-    "autocomplete_code_hint": "Cita una línea de un archivo abierto",
+    "autocomplete_code_hint": "Cita una línea (o un fragmento, ej: 1~12) de un archivo abierto",
     "autocomplete_mention_hint": "Menciona a alguien en la sala",
     "autocomplete_code_template": "code(numero, archivo)",
     "autocomplete_mention_template": "user(nombre)",
@@ -78,14 +83,16 @@
     "chip_file_not_found": "{filename}: archivo no encontrado",
     "chip_line_not_found": "{filename} L{line}: línea inexistente",
     "chip_goto_tooltip": "Ir a esta línea",
-    "goto_unavailable": "No se pudo ir a {filename} L{line}: el archivo se cerró o la línea ya no existe."
+    "goto_unavailable": "No se pudo ir a {filename} L{line}: el archivo se cerró o la línea ya no existe.",
+    "autocomplete_host_hint": "Menciona al host de la sala"
   },
   "file_sync": {
     "diff_apply_failed": "No se pudo aplicar la actualización de código (la librería no cargó).",
     "cite_line_button": "Citar línea {line} en el chat",
     "file_code_copied": "¡Código de {filename} copiado!",
     "file_downloaded": "¡{filename} descargado!",
-    "default_download_filename": "archivo.txt"
+    "default_download_filename": "archivo.txt",
+    "cite_lines_button": "Citar líneas {start}~{end} en el chat"
   },
   "socket": {
     "host_reconnected": "El host se reconectó.",
@@ -109,7 +116,15 @@
     "chat_muted": "El host restringió tu chat: no puedes enviar mensajes.",
     "chat_muted_by_host": "El host restringió tu chat. Todavía puedes copiar y descargar el código.",
     "chat_unmuted_by_host": "El host volvió a permitir tu chat.",
-    "chat_restricted_on_join": "Tu chat está restringido por el host. Todavía puedes copiar y descargar el código."
+    "chat_restricted_on_join": "Tu chat está restringido por el host. Todavía puedes copiar y descargar el código.",
+    "name_too_short": "Nombre no válido: usa al menos {min_chars} caracteres.",
+    "name_taken": "Ese nombre ya está en uso en la sala. Elige otro: al menos {min_chars} caracteres y distinto de los nombres que ya están en la sala.",
+    "name_reserved": "El nombre \"host\" está reservado. Elige otro: al menos {min_chars} caracteres y distinto de los nombres que ya están en la sala.",
+    "chat_all_muted": "El host bloqueó el chat de todos: no puedes enviar mensajes.",
+    "chat_all_muted_by_host": "El host bloqueó el chat de todos. Todavía puedes copiar y descargar el código.",
+    "chat_all_unmuted_by_host": "El host volvió a permitir el chat de todos.",
+    "chat_all_muted_on_join": "El chat está bloqueado por el host. Todavía puedes copiar y descargar el código.",
+    "session_replaced": "Entraste a esta sala desde otra pestaña o ventana."
   },
   "howto": {
     "title": "Cómo usar RoomsCode",
@@ -126,7 +141,7 @@
     "host_t2_1_title": "Compartir la pantalla",
     "host_t2_1_text": "Haz clic en <strong>Compartir pantalla</strong> y elige qué mostrar. Para terminar, haz clic en <strong>Detener el uso compartido</strong>.",
     "host_t2_2_title": "Compartir el código (conectar VS Code)",
-    "host_t2_2_text": "Instala la extensión (botón <strong>Descargar extensión</strong> de la pantalla de inicio). En VS Code, haz clic en <strong>RoomsCode</strong> en la barra de estado y pega el código copiado con <strong>Copiar código de la extensión</strong>; nunca compartas ese código con los espectadores. Tus pestañas abiertas pasan a verse en la clase, con la línea de tu cursor resaltada.",
+    "host_t2_2_text": "Instala la extensión (botón <strong>Descargar extensión</strong> de la pantalla de inicio). En VS Code, haz clic en <strong>RoomsCode</strong> en la barra de estado y pega el código copiado con <strong>Copiar código de la extensión</strong>; nunca compartas ese código con los espectadores. Tus pestañas abiertas pasan a verse en la clase: la pestaña en la que estás recibe un icono de persona y la línea de tu cursor aparece resaltada.",
     "host_t2_3_title": "Mostrar el directorio del proyecto",
     "host_t2_3_text": "Con una <strong>carpeta abierta</strong> en VS Code (menú <strong>Archivo → Abrir carpeta</strong>) y la extensión conectada, los espectadores obtienen un botón de carpeta junto a las pestañas. Abre el árbol completo de tu proyecto, solo con los nombres, pero solo permite abrir los archivos que están abiertos en tus pestañas. Carpetas como <code>node_modules</code> y <code>.git</code> aparecen bloqueadas, sin contenido. Atención: los nombres de todos los archivos son visibles, incluidos los sensibles (como <code>.env</code>); el contenido solo se comparte si abres el archivo. Sin carpeta abierta (solo un archivo suelto), el botón no aparece. Si no aparece, comprueba que la extensión esté actualizada.",
     "host_t2_4_title": "Gestionar a los espectadores",
@@ -134,7 +149,7 @@
     "host_t3_title": "Otros recursos",
     "host_t3_text": "Herramientas que ayudan a conversar con la clase durante la lección.",
     "host_t3_1_title": "Chat y citas de código",
-    "host_t3_1_text": "En el chat, <code>@nombre</code> o <code>!user(nombre)</code> menciona a alguien, y <code>!code(línea, archivo)</code> cita una línea. Al hacer clic en una cita, la persona va directo a esa línea del archivo.",
+    "host_t3_1_text": "En el chat, <code>@nombre</code> o <code>!user(nombre)</code> menciona a alguien, y <code>!code(línea, archivo)</code> cita una línea, o un fragmento, como <code>!code(1~12, archivo)</code>. Al hacer clic en una cita, la persona va directo a la primera línea citada. Quien es mencionado escucha un aviso sonoro; cuando eres tú, la extensión también muestra una notificación en VS Code durante 5 segundos (mantén la extensión actualizada).",
     "spectator_t1_title": "Entrar a la sala",
     "spectator_t1_text": "Para mirar, necesitas el código de la sala, que el Host le pasa a la clase.",
     "spectator_t1_1_title": "Con el código",
@@ -146,17 +161,23 @@
     "spectator_t2_1_title": "Seguir la pantalla",
     "spectator_t2_1_text": "La pantalla del Host aparece a la izquierda. Con el mouse encima, usa <strong>Pantalla completa</strong> u <strong>Ocultar pantalla</strong> (para ver solo el código). Arrastra el divisor entre los paneles para cambiar su tamaño.",
     "spectator_t2_2_title": "Recorrer el código",
-    "spectator_t2_2_text": "Cada pestaña es un archivo abierto por el Host; haz clic para cambiar. La línea donde está el Host aparece resaltada, y <strong>Seguir al Host</strong> acompaña su pestaña y su línea automáticamente. Desplázate por el código con libertad y usa los botones del encabezado para copiar o descargar el archivo actual.",
+    "spectator_t2_2_text": "Cada pestaña es un archivo abierto por el Host; haz clic para cambiar. La pestaña en la que está el Host tiene un <strong>icono de persona</strong> y su línea aparece resaltada, incluso sin <strong>Seguir al Host</strong>; con esa opción activada, acompañas su pestaña y su línea automáticamente. Desplázate por el código con libertad y usa los botones del encabezado para copiar o descargar el archivo actual.",
     "spectator_t2_3_title": "Ver el directorio del proyecto",
     "spectator_t2_3_text": "Cuando el Host tiene una carpeta abierta en VS Code, aparece un <strong>botón de carpeta</strong> junto a las pestañas. Abre el árbol del proyecto: haz clic en una carpeta para abrirla o cerrarla (todas empiezan cerradas). Solo se pueden abrir los archivos que el Host tiene abiertos en sus pestañas; haz clic en ellos para ir directo a la pestaña. Los demás avisan de que el Host no los ha abierto, y las carpetas con candado (como <code>node_modules</code>) están bloqueadas por defecto. El botón de <strong>terminal</strong>, en la esquina del directorio, copia un comando para el <strong>CMD de Windows</strong> que recrea las carpetas y los archivos (vacíos) donde lo pegues; lo que ya exista no se sobrescribe.",
     "spectator_t3_title": "Otros recursos",
     "spectator_t3_text": "Herramientas para participar en la lección y manejar imprevistos.",
     "spectator_t3_1_title": "Chat y citas de código",
-    "spectator_t3_1_text": "En el chat, <code>@nombre</code> o <code>!user(nombre)</code> menciona a alguien. Para citar una línea, usa <code>!code(línea, archivo)</code> o selecciona un fragmento del código y haz clic en <strong>Citar línea</strong>. Haz clic en una cita del chat para ir directo a esa línea.",
-    "spectator_t3_2_title": "Si el Host restringe tu chat",
-    "spectator_t3_2_text": "Sigues viéndolo todo y puedes copiar y descargar el código, pero no puedes enviar mensajes, menciones ni citas hasta que el Host lo permita de nuevo.",
+    "spectator_t3_1_text": "En el chat, <code>@nombre</code> o <code>!user(nombre)</code> menciona a alguien, y <code>@host</code> llama al Host sin escribir su nombre; quien es mencionado escucha un aviso sonoro. Para citar código, usa <code>!code(línea, archivo)</code> (o <code>!code(1~12, archivo)</code> para un fragmento) o selecciona una o más líneas del código y haz clic en <strong>Citar línea</strong>. Haz clic en una cita del chat para ir directo a la primera línea citada.",
+    "spectator_t3_2_title": "Si el Host restringe o bloquea el chat",
+    "spectator_t3_2_text": "Sigues viéndolo todo y puedes copiar y descargar el código, pero no puedes enviar mensajes, menciones ni citas hasta que el Host lo permita de nuevo. Esto vale tanto para la restricción solo de tu chat como para el bloqueo del chat de todos.",
     "spectator_t3_3_title": "Si se cae la conexión",
-    "spectator_t3_3_text": "El sitio intenta reconectarse solo. Si quien se cae es el Host, ves un aviso de espera y la sala solo se cierra si no vuelve a tiempo."
+    "spectator_t3_3_text": "El sitio intenta reconectarse solo. Si quien se cae es el Host, ves un aviso de espera y la sala solo se cierra si no vuelve a tiempo.",
+    "host_t1_2_title": "Elegir tu nombre",
+    "host_t1_2_text": "Tu nombre debe tener <strong>al menos 4 caracteres</strong>. Los espectadores usan <code>@host</code> para llamarte sin escribir tu nombre; por eso no pueden elegir el nombre <code>host</code>.",
+    "host_t2_5_title": "Bloquear el chat de todos",
+    "host_t2_5_text": "En la parte superior del panel de espectadores hay un botón de globo de chat, igual al del menú individual. Haz clic para <strong>bloquear el chat de todos</strong> a la vez (el globo toma el color del sitio y queda tachado); haz clic otra vez para permitirlo. El bloqueo también vale para quien entre después y no deshace las restricciones individuales: quien fue restringido uno por uno sigue restringido hasta que lo permitas.",
+    "spectator_t1_3_title": "Elegir tu nombre",
+    "spectator_t1_3_text": "Tu nombre debe tener <strong>al menos 4 caracteres</strong> y no puede ser igual al de otra persona de la sala (ni al del Host, sin distinguir mayúsculas de minúsculas). El nombre <code>host</code> está reservado. Si el nombre no es aceptado, un aviso explica el motivo."
   },
   "directory": {
     "button_tooltip": "Ver el directorio del workspace del Host",

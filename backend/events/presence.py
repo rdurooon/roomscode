@@ -1,7 +1,7 @@
 import re
 
 from flask import current_app, request
-from flask_socketio import emit, join_room
+from flask_socketio import emit, join_room, leave_room
 
 from ..net import get_client_ip
 from ..rooms.manager import room_manager
@@ -49,6 +49,11 @@ def register_presence_events(socketio):
             return
 
         name = (data or {}).get("name", "Host")
+        min_chars = current_app.config["MIN_NAME_CHARS"]
+        if room_manager.name_error(name, min_chars) is not None:
+            emit("join_error", {"code": "NAME_TOO_SHORT", "min_chars": min_chars})
+            return
+        name = name.strip()
         room = room_manager.create_room(host_sid=request.sid, host_name=name)
         join_room(room.code)
         # ext_token e host_session_token só vão para o Host que acabou de
@@ -108,6 +113,8 @@ def register_presence_events(socketio):
                 "workspace_tree": room.workspace_tree,
                 "workspace_tree_truncated": room.workspace_tree_truncated,
                 "host_cursor": room.host_cursor,
+                "host_active_tab": room.host_active_tab,
+                "chat_all_muted": room.chat_all_muted,
                 "spectators": list(room.spectators.values()),
                 "roster": room_manager.get_roster(room),
             },
@@ -136,11 +143,34 @@ def register_presence_events(socketio):
         if not isinstance(client_id, str) or not _CLIENT_ID_PATTERN.match(client_id):
             client_id = ""
 
-        room = room_manager.add_spectator(code, sid=request.sid, name=name, client_id=client_id)
+        min_chars = current_app.config["MIN_NAME_CHARS"]
+        room, error, replaced_sid = room_manager.join_spectator(
+            code,
+            sid=request.sid,
+            name=name,
+            client_id=client_id,
+            min_chars=min_chars,
+            reserved=current_app.config["RESERVED_SPECTATOR_NAMES"],
+        )
         if room is None:
-            emit("join_error", {"code": "ROOM_NOT_FOUND"})
+            payload = {"code": error or "ROOM_NOT_FOUND"}
+            if error in ("NAME_TOO_SHORT", "NAME_TAKEN", "NAME_RESERVED"):
+                payload["min_chars"] = min_chars
+            emit("join_error", payload)
             return
 
+        # A mesma pessoa voltou (F5/queda) antes de o servidor notar que o socket antigo caiu: tira o socket
+        # antigo da sala (se ainda estiver vivo, ele é avisado) e atualiza a lista, como numa saída normal.
+        if replaced_sid:
+            emit("session_replaced", {"code": "SESSION_REPLACED"}, room=replaced_sid)
+            leave_room(room.code, sid=replaced_sid)
+            emit(
+                "spectator_left",
+                {"sid": replaced_sid, "spectators": list(room.spectators.values())},
+                room=room.code,
+            )
+
+        name = room.spectators[request.sid]
         join_room(room.code)
 
         emit(
@@ -161,8 +191,10 @@ def register_presence_events(socketio):
                 "workspace_tree": room.workspace_tree,
                 "workspace_tree_truncated": room.workspace_tree_truncated,
                 "host_cursor": room.host_cursor,
+                "host_active_tab": room.host_active_tab,
                 "spectators": list(room.spectators.values()),
                 "chat_muted": room_manager.is_chat_muted(room, request.sid),
+                "chat_all_muted": room.chat_all_muted,
                 "screen_sharing": room.screen_sharing,
             },
         )

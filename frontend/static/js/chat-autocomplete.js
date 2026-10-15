@@ -149,7 +149,7 @@
         }
 
         // Caso 2: usuário está digitando o argumento "arquivo" de !code(numero, arquivo)
-        const fileArgMatch = textBeforeCursor.match(/!code\(\s*\d+\s*,\s*([^)]*)$/);
+        const fileArgMatch = textBeforeCursor.match(/!code\(\s*\d+(?:\s*[~-]\s*\d+)?\s*,\s*([^)]*)$/);
         if (fileArgMatch) {
             const typedFile = fileArgMatch[1].trim().toLowerCase();
             const argStart = cursor - fileArgMatch[1].length;
@@ -189,6 +189,11 @@
             const items = names
                 .filter((n) => n.toLowerCase().startsWith(typedName))
                 .map((n) => ({ label: `@${n}`, mentionName: n }));
+
+            // Atalho: "@host" menciona o host da sala sem digitar o nome dele (o servidor troca pelo nome real).
+            if (window.hasHost && window.hasHost() && 'host'.startsWith(typedName)) {
+                items.unshift({ label: '@host', hint: window.t('chat.autocomplete_host_hint'), mentionName: 'host' });
+            }
 
             if (items.length) {
                 renderItems(items, (item) => applyAtMentionSuggestion(input, item.mentionName, atIndex, cursor));

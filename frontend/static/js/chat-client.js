@@ -1,5 +1,13 @@
-// Formato do comando de código: !code(linha, arquivo) — ex: !code(23, main.py)
-const CODE_REF_PATTERN = /!code\(\s*(\d+)\s*,\s*([^)]+)\)/g;
+// Formato do comando de código: !code(linha, arquivo) — ex: !code(23, main.py) — ou, para várias linhas,
+// !code(inicio~fim, arquivo) — ex: !code(1~12, main.py). Grupos: 1 = linha (ou início), 2 = fim (opcional), 3 = arquivo.
+const CODE_REF_PATTERN = /!code\(\s*(\d+)(?:\s*[~-]\s*(\d+))?\s*,\s*([^)]+)\)/g;
+
+/** Linha inicial e final de uma citação já casada por CODE_REF_PATTERN (início maior que o fim vira o inverso). */
+function codeRefLines(match) {
+    const first = parseInt(match[1], 10);
+    const second = match[2] !== undefined ? parseInt(match[2], 10) : first;
+    return { start: Math.min(first, second), end: Math.max(first, second) };
+}
 
 // Formato do comando de menção: !user(nome) — ex: !user(Fulano)
 const USER_MENTION_PATTERN = /!user\(\s*([^)]+)\)/g;
@@ -16,7 +24,16 @@ function buildAtMentionPattern(names) {
     if (!names || !names.length) return null;
     const sorted = [...names].sort((a, b) => b.length - a.length);
     const escaped = sorted.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    return new RegExp(`@(${escaped.join('|')})`, 'g');
+    // Mesma regra do servidor (que decide quem recebe o aviso sonoro): sem diferenciar maiúsculas e sem letra,
+    // número ou "_" logo depois do nome ("@Anabela" não é uma menção a "Ana").
+    return new RegExp(`@(${escaped.join('|')})(?![\\p{L}\\p{N}_])`, 'giu');
+}
+
+/** True se o caractere logo antes de `index` for letra, número ou "_" (aí o "@" faz parte de outra palavra, como em "a@Ana"). */
+function isWordCharBefore(text, index) {
+    if (index <= 0) return false;
+    const previous = Array.from(text.slice(Math.max(0, index - 2), index)).pop();
+    return /[\p{L}\p{N}_]/u.test(previous);
 }
 
 function findAllChatMatches(text) {
@@ -25,12 +42,14 @@ function findAllChatMatches(text) {
 
     CODE_REF_PATTERN.lastIndex = 0;
     while ((m = CODE_REF_PATTERN.exec(text)) !== null) {
+        const lines = codeRefLines(m);
         matches.push({
             index: m.index,
             end: CODE_REF_PATTERN.lastIndex,
             type: 'code',
-            lineNumber: parseInt(m[1], 10),
-            filename: m[2].trim(),
+            lineNumber: lines.start,
+            endLineNumber: lines.end,
+            filename: m[3].trim(),
         });
     }
 
@@ -49,6 +68,7 @@ function findAllChatMatches(text) {
     if (atPattern) {
         atPattern.lastIndex = 0;
         while ((m = atPattern.exec(text)) !== null) {
+            if (isWordCharBefore(text, m.index)) continue;
             matches.push({
                 index: m.index,
                 end: atPattern.lastIndex,
@@ -90,14 +110,19 @@ function initChat(socket, roomState) {
             if (match.type === 'code') {
                 const lines = (window.getFileLinesForFilename && window.getFileLinesForFilename(match.filename)) || null;
 
+                const isRange = match.endLineNumber > match.lineNumber;
+                const lineTag = isRange ? `L${match.lineNumber}~L${match.endLineNumber}` : `L${match.lineNumber}`;
+
                 let label;
                 let resolved = false;
                 if (!lines) {
                     label = window.t('chat.chip_file_not_found', { filename: match.filename });
-                } else if (match.lineNumber < 1 || match.lineNumber > lines.length) {
-                    label = window.t('chat.chip_line_not_found', { filename: match.filename, line: match.lineNumber });
+                } else if (match.lineNumber < 1 || match.endLineNumber > lines.length) {
+                    const badLine = match.lineNumber < 1 ? match.lineNumber : match.endLineNumber;
+                    label = window.t('chat.chip_line_not_found', { filename: match.filename, line: badLine });
                 } else {
-                    label = `${match.filename} L${match.lineNumber}: ${lines[match.lineNumber - 1].trim()}`;
+                    // Várias linhas: o texto mostrado é o da primeira linha citada.
+                    label = `${match.filename} ${lineTag}: ${lines[match.lineNumber - 1].trim()}`;
                     resolved = true;
                 }
 
@@ -111,7 +136,7 @@ function initChat(socket, roomState) {
                 if (resolved) {
                     const goToLine = () => {
                         if (!window.goToCodeLine) return;
-                        if (!window.goToCodeLine(match.filename, match.lineNumber) && window.showToast) {
+                        if (!window.goToCodeLine(match.filename, match.lineNumber, match.endLineNumber) && window.showToast) {
                             window.showToast(
                                 window.t('chat.goto_unavailable', { filename: match.filename, line: match.lineNumber }),
                                 'error'
@@ -161,6 +186,11 @@ function initChat(socket, roomState) {
         messagesBox.scrollTop = messagesBox.scrollHeight;
     });
 
+    // O servidor manda este evento só para quem foi mencionado nesta mensagem.
+    socket.on('chat_mention', () => {
+        if (window.playMentionSound) window.playMentionSound();
+    });
+
     socket.on('chat_rate_limited', (data) => {
         if (window.showToast) {
             const message = window.t('socket.' + data.code.toLowerCase(), { max_chars: data.max_chars });
@@ -175,7 +205,7 @@ function initChat(socket, roomState) {
 
         // Chat restrito pelo Host (o servidor também barra — ver chat.py).
         if (roomState.chatMuted) {
-            if (window.showToast) window.showToast(window.t('socket.chat_muted'), 'error');
+            if (window.showToast) window.showToast(window.t(roomState.chatMutedAll ? 'socket.chat_all_muted' : 'socket.chat_muted'), 'error');
             return;
         }
 
@@ -186,14 +216,15 @@ function initChat(socket, roomState) {
         let match;
         CODE_REF_PATTERN.lastIndex = 0;
         while ((match = CODE_REF_PATTERN.exec(message)) !== null) {
-            const lineNumber = parseInt(match[1], 10);
-            const filename = match[2].trim();
+            const { start, end } = codeRefLines(match);
+            const filename = match[3].trim();
             const lines = (window.getFileLinesForFilename && window.getFileLinesForFilename(filename)) || null;
 
             if (!lines) {
                 invalidRefs.push(window.t('chat.invalid_ref_file_not_found', { filename }));
-            } else if (lineNumber < 1 || lineNumber > lines.length) {
-                invalidRefs.push(window.t('chat.invalid_ref_line_out_of_range', { filename, line: lineNumber, total: lines.length }));
+            } else if (start < 1 || end > lines.length) {
+                const badLine = start < 1 ? start : end;
+                invalidRefs.push(window.t('chat.invalid_ref_line_out_of_range', { filename, line: badLine, total: lines.length }));
             }
         }
 

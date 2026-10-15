@@ -57,6 +57,10 @@ class Config:
     MAX_PATCH_CHARS = int(os.environ.get("MAX_PATCH_CHARS", 3_000_000))
     MAX_TABS_PER_BATCH = int(os.environ.get("MAX_TABS_PER_BATCH", 50))
     MAX_CHAT_MESSAGE_CHARS = int(os.environ.get("MAX_CHAT_MESSAGE_CHARS", 4000))
+    # Nome de usuário (Host e Espectador): precisa ter MAIS de 3 caracteres (ou seja, no mínimo 4) depois do trim.
+    MIN_NAME_CHARS = 4
+    # Nomes que um Espectador não pode usar: "host" é o atalho de menção ao Host (@host), então um espectador com esse nome seria ambíguo.
+    RESERVED_SPECTATOR_NAMES = ("host",)
     # Árvore do workspace do Host (botão "Diretório"): só nomes, sem conteúdo.
     MAX_TREE_NODES = int(os.environ.get("MAX_TREE_NODES", 4000))
     MAX_TREE_DEPTH = int(os.environ.get("MAX_TREE_DEPTH", 20))

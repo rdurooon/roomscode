@@ -169,7 +169,16 @@
 
         <div class="bottom-grid">
             <section class="panel spectators-panel">
-                <h3 id="spectators-heading">{{ t('room.spectators_heading', count=0) }}</h3>
+                <div class="spectators-header">
+                    <h3 id="spectators-heading">{{ t('room.spectators_heading', count=0) }}</h3>
+                    {% if role == 'host' %}
+                    <!-- Bloqueia/libera o chat de TODOS os espectadores (estado de sala; o clique é tratado em
+                         room-init.js, e o visual "ativo" = cor do site + balão cortado, igual ao do menu individual). -->
+                    <button type="button" class="spectators-mute-all-btn" id="mute-all-btn" aria-pressed="false" title="{{ t('room.mod_mute_all_tooltip') }}" aria-label="{{ t('room.mod_mute_all_tooltip') }}">
+                        {% include 'partials/chat_bubble_all_icon.svg' %}
+                    </button>
+                    {% endif %}
+                </div>
                 <ul id="spectator-list"></ul>
             </section>
 
@@ -200,6 +209,10 @@
     {% endif %}
 
     {% include 'partials/directory_modal.html' %}
+
+    <!-- Ícone que marca, na barra de abas, a aba em que o Host está (copiado para dentro da aba por
+         file-sync-client.js). Para trocar o ícone, basta editar partials/host_tab_icon.svg. -->
+    <template id="host-tab-icon-template">{% include 'partials/host_tab_icon.svg' %}</template>
 
     <div class="modal-overlay" id="join-modal">
         <div class="modal-card">
@@ -259,6 +272,7 @@
     <script src="{{ url_for('static', filename='vendor/diff-match-patch/diff_match_patch.js') }}"></script>
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
     <script src="{{ url_for('static', filename='js/clipboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notify-sound.js') }}"></script>
     <script src="{{ url_for('static', filename='js/file-sync-client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/directory-tree.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat-client.js') }}"></script>

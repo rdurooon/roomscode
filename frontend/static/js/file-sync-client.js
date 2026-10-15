@@ -3,7 +3,7 @@ let openTabs = {};       // tabId -> { filename, language, content, path }
 let tabOrder = [];       // ordem de exibição das abas
 let activeViewTabId = null; // qual aba o usuário (deste navegador) está vendo agora
 let hostCursorByTab = {};   // tabId -> linha atual do host nessa aba
-let hostActiveTabId = null; // última aba onde chegou um cursor do host (heurística de "aba ativa do host")
+let hostActiveTabId = null; // aba em que o Host está agora (a do último cursor; o servidor também informa na entrada)
 let followHostEnabled = false; // modo "seguir o Host" (Espectador)
 
 // ---- Guias de indentação (calculadas por linha) ----
@@ -123,12 +123,13 @@ function renderCodePanel(content, language) {
     }
 }
 
-/** Destaca a linha onde o Host está, na aba atualmente exibida. */
+/** Destaca a linha onde o Host está, se a aba exibida for a aba em que ele está agora (com ou sem "Seguir o Host"). */
 function highlightHostLine() {
     document.querySelectorAll('.host-line-highlight').forEach((el) => {
         el.classList.remove('host-line-highlight');
     });
 
+    if (!activeViewTabId || activeViewTabId !== hostActiveTabId) return;
     const line = hostCursorByTab[activeViewTabId];
     if (!line) return;
 
@@ -138,23 +139,28 @@ function highlightHostLine() {
 }
 
 /**
- * Leva o usuário até uma linha do arquivo `filename` (clique numa citação
- * !code(...) do chat): troca pra aba desse arquivo se preciso, rola até a
- * linha e a destaca por um instante. Devolve false se o arquivo não está mais
- * aberto ou a linha não existe mais (o chat avisa com um toast).
+ * Leva o usuário até uma linha (ou um trecho, de startLine a endLine) do arquivo `filename` (clique numa citação
+ * !code(...) do chat): troca pra aba desse arquivo se preciso, rola até a PRIMEIRA linha e destaca por um instante
+ * todas as linhas citadas. Devolve false se o arquivo não está mais aberto ou o trecho não existe mais (o chat
+ * avisa com um toast).
  */
-function goToCodeLine(filename, lineNumber) {
+function goToCodeLine(filename, startLine, endLine) {
+    const end = endLine === undefined || endLine === null ? startLine : endLine;
     const tabId = tabOrder.find((id) => openTabs[id] && openTabs[id].filename === filename);
     if (!tabId) return false;
 
     const lines = openTabs[tabId].content ? openTabs[tabId].content.split('\n') : [];
-    if (!Number.isInteger(lineNumber) || lineNumber < 1 || lineNumber > lines.length) return false;
+    if (!Number.isInteger(startLine) || !Number.isInteger(end)) return false;
+    if (startLine < 1 || end < startLine || end > lines.length) return false;
 
     // Troca manual de aba: com "Seguir o Host" ligado ele desliga sozinho
     // (ver switchToTab), senão o próximo movimento do Host puxaria de volta.
     if (tabId !== activeViewTabId) switchToTab(tabId);
 
-    const cells = Array.from(document.querySelectorAll(`#code-content .hljs-ln-line[data-line-number="${lineNumber}"]`));
+    const cells = Array.from(document.querySelectorAll('#code-content .hljs-ln-line')).filter((cell) => {
+        const n = parseInt(cell.getAttribute('data-line-number'), 10);
+        return n >= startLine && n <= end;
+    });
     if (!cells.length) return false;
 
     cells.forEach((cell) => {
@@ -178,6 +184,38 @@ function scrollToHostLine() {
     }
 }
 
+/** Ícone de pessoa (vem do <template id="host-tab-icon-template">, que usa partials/host_tab_icon.svg). */
+function createHostTabIcon() {
+    const icon = document.createElement('span');
+    icon.className = 'code-tab-host-icon';
+    icon.setAttribute('role', 'img');
+    const tooltip = window.t ? window.t('room.host_here_tooltip') : '';
+    icon.title = tooltip;
+    icon.setAttribute('aria-label', tooltip);
+
+    const template = document.getElementById('host-tab-icon-template');
+    if (template && template.content) {
+        icon.appendChild(template.content.cloneNode(true));
+    }
+    return icon;
+}
+
+/** Move o ícone do Host para a aba em que ele está agora, sem redesenhar a barra inteira. */
+function updateHostTabIndicator() {
+    const bar = document.getElementById('code-tab-bar');
+    if (!bar) return;
+
+    bar.querySelectorAll('.code-tab').forEach((btn) => {
+        const hasIcon = btn.querySelector('.code-tab-host-icon');
+        const isHostTab = !!hostActiveTabId && btn.dataset.tabId === hostActiveTabId;
+        if (isHostTab && !hasIcon) {
+            btn.appendChild(createHostTabIcon());
+        } else if (!isHostTab && hasIcon) {
+            hasIcon.remove();
+        }
+    });
+}
+
 function renderTabBar() {
     const bar = document.getElementById('code-tab-bar');
     if (!bar) return;
@@ -190,7 +228,16 @@ function renderTabBar() {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'code-tab' + (tabId === activeViewTabId ? ' code-tab-active' : '');
-        btn.textContent = tab.filename;
+        btn.dataset.tabId = tabId;
+
+        const label = document.createElement('span');
+        label.className = 'code-tab-label';
+        label.textContent = tab.filename;
+        btn.appendChild(label);
+
+        // O ícone de pessoa fica no lado direito da aba em que o Host está (ver updateHostTabIndicator).
+        if (tabId === hostActiveTabId) btn.appendChild(createHostTabIcon());
+
         btn.addEventListener('click', () => switchToTab(tabId));
         bar.appendChild(btn);
     });
@@ -316,7 +363,9 @@ function initFileSync(socket) {
 
     socket.on('host_cursor_line', (data) => {
         hostCursorByTab[data.tabId] = data.line;
+        const hostTabChanged = hostActiveTabId !== data.tabId;
         hostActiveTabId = data.tabId;
+        if (hostTabChanged) updateHostTabIndicator();
 
         if (followHostEnabled && data.tabId !== activeViewTabId && openTabs[data.tabId]) {
             switchToTab(data.tabId, true);
@@ -324,11 +373,10 @@ function initFileSync(socket) {
             return;
         }
 
-        if (data.tabId === activeViewTabId) {
-            highlightHostLine();
-            if (followHostEnabled) {
-                scrollToHostLine();
-            }
+        // Sempre: a linha nova fica realçada e, se o Host saiu da aba que está sendo vista, o realce antigo some.
+        highlightHostLine();
+        if (data.tabId === activeViewTabId && followHostEnabled) {
+            scrollToHostLine();
         }
     });
 
@@ -372,6 +420,7 @@ window.getActiveTabFilename = () => (openTabs[activeViewTabId] ? openTabs[active
 
 // ---- Exposto apenas para testes automatizados (jsdom) ----
 window.__indentGuides = { leadingIndentWidth, detectIndentUnit, applyIndentGuides };
+window.__getSelectedLineRange = getSelectedLineRange;
 
 window.setFollowHost = (enabled) => {
     followHostEnabled = enabled;
@@ -390,7 +439,7 @@ window.setFollowHost = (enabled) => {
 };
 
 // Usado pelo room-init.js ao processar o payload de `joined_room`.
-window.loadInitialTabs = (tabs, hostCursor) => {
+window.loadInitialTabs = (tabs, hostCursor, hostActiveTab) => {
     tabOrder = [];
     openTabs = {};
     (tabs || []).forEach((tab) => {
@@ -398,15 +447,44 @@ window.loadInitialTabs = (tabs, hostCursor) => {
         tabOrder.push(tab.tabId);
     });
     hostCursorByTab = hostCursor || {};
+    hostActiveTabId = hostActiveTab || null;
     activeViewTabId = tabOrder[0] || null;
     renderTabBar();
     renderActiveTabContent();
 };
 
 /**
+ * Primeira e última linha que a seleção cobre de verdade no painel de código (uma linha só ou várias), ou null se
+ * não der para saber. Uma linha só conta se a seleção passa por dentro dela: terminar exatamente no começo da linha
+ * seguinte (ex.: triplo clique) não inclui essa linha.
+ */
+function getSelectedLineRange(selection, codeEl) {
+    if (!selection || !selection.rangeCount || !codeEl) return null;
+    const range = selection.getRangeAt(0);
+    const cells = codeEl.querySelectorAll('td.hljs-ln-code');
+    if (!cells.length) return null;
+
+    const cellRange = document.createRange();
+    let first = null;
+    let last = null;
+    cells.forEach((cell) => {
+        cellRange.selectNodeContents(cell);
+        const startsBeforeCellEnds = range.compareBoundaryPoints(Range.END_TO_START, cellRange) < 0;
+        const endsAfterCellStarts = range.compareBoundaryPoints(Range.START_TO_END, cellRange) > 0;
+        if (!startsBeforeCellEnds || !endsAfterCellStarts) return;
+
+        const n = parseInt(cell.getAttribute('data-line-number'), 10);
+        if (!Number.isInteger(n)) return;
+        if (first === null || n < first) first = n;
+        if (last === null || n > last) last = n;
+    });
+    return first === null ? null : { start: first, end: last };
+}
+
+/**
  * Forma de citar código selecionando um trecho no painel: aparece um botão
- * flutuante que insere `!code(linha, arquivo)` no chat, já preenchendo o
- * arquivo com a aba que está sendo exibida no momento da seleção.
+ * flutuante que insere `!code(linha, arquivo)` no chat (ou `!code(inicio~fim, arquivo)` quando a seleção pega várias
+ * linhas), já preenchendo o arquivo com a aba que está sendo exibida no momento da seleção.
  */
 function initLineQuoting() {
     const codeEl = document.getElementById('code-content');
@@ -434,15 +512,23 @@ function initLineQuoting() {
         const selectedText = selection ? selection.toString().trim() : '';
         if (!selectedText || !selection.rangeCount) return;
 
-        const idx = tab.content.indexOf(selectedText);
-        if (idx === -1) return;
-
-        const startLine = tab.content.slice(0, idx).split('\n').length;
+        let lineRange = getSelectedLineRange(selection, codeEl);
+        if (!lineRange) {
+            // Sem a estrutura de linhas (ex.: o destaque de sintaxe não carregou): acha o trecho no texto do arquivo.
+            const idx = tab.content.indexOf(selectedText);
+            if (idx === -1) return;
+            const startLine = tab.content.slice(0, idx).split('\n').length;
+            lineRange = { start: startLine, end: startLine + selectedText.split('\n').length - 1 };
+        }
+        const { start: startLine, end: endLine } = lineRange;
+        const isRange = endLine > startLine;
         const rect = selection.getRangeAt(0).getBoundingClientRect();
 
         citeBtn = document.createElement('button');
         citeBtn.type = 'button';
-        citeBtn.textContent = window.t('file_sync.cite_line_button', { line: startLine });
+        citeBtn.textContent = isRange
+            ? window.t('file_sync.cite_lines_button', { start: startLine, end: endLine })
+            : window.t('file_sync.cite_line_button', { line: startLine });
         citeBtn.className = 'cite-line-btn';
         citeBtn.style.top = `${rect.bottom + 6}px`;
         citeBtn.style.left = `${rect.left}px`;
@@ -450,7 +536,8 @@ function initLineQuoting() {
         citeBtn.addEventListener('click', () => {
             const chatInput = document.getElementById('chat-input');
             const needsSpace = chatInput.value && !chatInput.value.endsWith(' ');
-            chatInput.value += `${needsSpace ? ' ' : ''}!code(${startLine}, ${tab.filename}) `;
+            const lineArg = isRange ? `${startLine}~${endLine}` : `${startLine}`;
+            chatInput.value += `${needsSpace ? ' ' : ''}!code(${lineArg}, ${tab.filename}) `;
             chatInput.focus();
             removeCiteBtn();
             selection.removeAllRanges();
